@@ -845,6 +845,50 @@ public class OpusProcessor {
     }
 
     /**
+     * 将PCM音频数据编码为Opus格式 - 用于实时音频传输
+     */
+    public byte[] encodeToOpus(byte[] pcmData) throws OpusException {
+        if (pcmData == null || pcmData.length == 0) {
+            return new byte[0];
+        }
+
+        // 创建临时会话ID用于编码
+        String tempSid = "realtime_" + Thread.currentThread().getId();
+        
+        try {
+            // 使用pcmToOpus方法进行编码，非流式模式
+            List<byte[]> opusFrames = pcmToOpus(tempSid, pcmData, false);
+            
+            if (opusFrames.isEmpty()) {
+                return new byte[0];
+            }
+            
+            // 如果只有一帧，直接返回
+            if (opusFrames.size() == 1) {
+                return opusFrames.get(0);
+            }
+            
+            // 多帧合并
+            int totalLength = 0;
+            for (byte[] frame : opusFrames) {
+                totalLength += frame.length;
+            }
+            
+            byte[] result = new byte[totalLength];
+            int offset = 0;
+            for (byte[] frame : opusFrames) {
+                System.arraycopy(frame, 0, result, offset, frame.length);
+                offset += frame.length;
+            }
+            
+            return result;
+        } finally {
+            // 清理临时编码器
+            cleanup(tempSid);
+        }
+    }
+
+    /**
      * 释放资源
      */
     @PreDestroy

@@ -156,4 +156,28 @@ public class SysConfigServiceImpl extends BaseServiceImpl implements SysConfigSe
         return modelConfigs.isEmpty() ? null : modelConfigs.getFirst();
     }
 
+    /**
+     * 根据条件查询配置（返回第一个匹配的）
+     * 
+     * @param config 查询条件
+     * @return 匹配的配置
+     */
+    @Override
+    public SysConfig selectConfigByConditions(SysConfig config) {
+        List<SysConfig> configs = configMapper.query(config);
+        return configs.isEmpty() ? null : configs.getFirst();
+    }
+
+    /**
+     * 根据条件查询配置（返回第一个匹配的）
+     * 
+     * @param config 查询条件
+     * @return 匹配的配置
+     */
+    @Override
+    public SysConfig selectConfigByCondition(SysConfig config) {
+        List<SysConfig> configs = configMapper.query(config);
+        return configs.isEmpty() ? null : configs.getFirst();
+    }
+
 }

@@ -76,6 +76,12 @@ public class SysConfig extends Base<SysConfig> {
     @Schema(description = "服务提供商的API地址")
     private String apiUrl;
 
+    @Schema(description = "服务提供商的基础URL（用于支持自定义API端点）")
+    private String baseUrl;
+
+    @Schema(description = "模型名称（如gpt-3.5-turbo、whisper-1、tts-1等）")
+    private String modelName;
+
     @Schema(description = "服务提供商状态")
     private String state;
 

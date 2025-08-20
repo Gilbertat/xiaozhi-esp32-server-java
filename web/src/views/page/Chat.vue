@@ -64,6 +64,7 @@
       :message-list="messages"
       :show-input="true"
       :show-voice-toggle="true"
+      :show-mode-selector="true"
       :user-avatar="userAvatar"
       :ai-avatar="aiAvatar"
       :input-placeholder="'输入消息...'"
@@ -442,9 +443,15 @@ export default {
     },
 
     // 处理输入模式变化
-    handleModeChange(isVoiceMode) {
-      this.isVoiceMode = isVoiceMode;
-      log(`切换到${isVoiceMode ? '语音' : '文字'}输入模式`, 'info');
+    handleModeChange(dialogueMode) {
+      // 处理对话模式变化（realtime 或 traditional）
+      if (dialogueMode === 'realtime') {
+        log('切换到实时对话模式', 'info');
+        // 这里可以添加实时模式相关的初始化逻辑
+      } else {
+        log('切换到传统模式', 'info');
+        // 这里可以添加传统模式相关的逻辑
+      }
     },
 
     // 保存服务器配置

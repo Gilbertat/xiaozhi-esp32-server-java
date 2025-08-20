@@ -116,6 +116,7 @@ public class SttServiceFactory {
             case "aliyun" -> new AliyunSttService(config);
             case "funasr" -> new FunASRSttService(config);
             case "xfyun" -> new XfyunSttService(config);
+            case "openai" -> new OpenAISttService(config);
             default -> {
                 var service = initializeVosk();
                 if (service == null) {

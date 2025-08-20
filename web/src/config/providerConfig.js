@@ -80,12 +80,18 @@ export const configTypeMap = {
   stt: {
     label: '语音识别',
     typeOptions: [
-      { label: 'Tencent', value: 'tencent', key: '0' },
-      { label: 'Aliyun', value: 'aliyun', key: '1' },
-      { label: 'Xfyun', value: 'xfyun', key: '2' },
-      { label: 'FunASR', value: 'funasr', key: '3' }
+      { label: 'OpenAI', value: 'openai', key: '0' },
+      { label: 'Tencent', value: 'tencent', key: '1' },
+      { label: 'Aliyun', value: 'aliyun', key: '2' },
+      { label: 'Xfyun', value: 'xfyun', key: '3' },
+      { label: 'FunASR', value: 'funasr', key: '4' }
     ],
     typeFields: {
+      openai: [
+        { name: 'apiKey', label: 'API Key', required: true, span: 12 },
+        { name: 'baseUrl', label: 'Base URL', required: false, span: 12, defaultUrl: 'https://api.openai.com/v1/audio/transcriptions' },
+        { name: 'modelName', label: 'Model', required: false, span: 12, defaultValue: 'whisper-1' }
+      ],
       tencent: [
         { name: 'appId', label: 'App Id', required: true, span: 12 },
         { name: 'apiKey', label: 'Secret Id', required: true, span: 12 },
@@ -107,12 +113,18 @@ export const configTypeMap = {
   tts: {
     label: '语音合成',
     typeOptions: [
-      { label: 'Aliyun', value: 'aliyun', key: '0' },
-      { label: 'Volcengine(doubao)', value: 'volcengine', key: '1' },
-      { label: 'Xfyun', value: 'xfyun', key: '2' },
-      { label: 'Minimax', value: 'minimax', key: '3' }
+      { label: 'OpenAI', value: 'openai', key: '0' },
+      { label: 'Aliyun', value: 'aliyun', key: '1' },
+      { label: 'Volcengine(doubao)', value: 'volcengine', key: '2' },
+      { label: 'Xfyun', value: 'xfyun', key: '3' },
+      { label: 'Minimax', value: 'minimax', key: '4' }
     ],
     typeFields: {
+      openai: [
+        { name: 'apiKey', label: 'API Key', required: true, span: 12 },
+        { name: 'baseUrl', label: 'Base URL', required: false, span: 12, defaultUrl: 'https://api.openai.com/v1/audio/speech' },
+        { name: 'modelName', label: 'Model', required: false, span: 12, defaultValue: 'tts-1' }
+      ],
       aliyun: [
         { name: 'apiKey', label: 'API Key', required: true, span: 12 }
       ],
@@ -129,6 +141,19 @@ export const configTypeMap = {
         { name: 'appId', label: 'Group Id', required: true, span: 12 },
         { name: 'apiKey', label: 'API Key', required: true, span: 12 }
       ],
+    }
+  },
+  realtime: {
+    label: '实时对话',
+    typeOptions: [
+      { label: 'OpenAI Realtime', value: 'openai', key: '0' }
+    ],
+    typeFields: {
+      openai: [
+        { name: 'apiKey', label: 'API Key', required: true, span: 12 },
+        { name: 'baseUrl', label: 'Base URL', required: false, span: 12, defaultUrl: 'wss://api.openai.com/v1/realtime' },
+        { name: 'modelName', label: 'Model', required: false, span: 12, defaultValue: 'gpt-4o-realtime-preview-2024-10-01' }
+      ]
     }
   }
 };

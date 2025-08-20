@@ -467,4 +467,60 @@ public class AudioService {
         }
     }
 
+    // ========== OpenAI Realtime 相关方法 ==========
+
+    /**
+     * 发送实时音频块到客户端
+     */
+    public void sendRealTimeAudioChunk(ChatSession session, byte[] audioData) {
+        String sessionId = session.getSessionId();
+        try {
+            if (session.isOpen()) {
+                // 将PCM音频数据转换为Opus格式并发送
+                byte[] opusData = opusProcessor.encodeToOpus(audioData);
+                session.sendBinaryMessage(opusData);
+                
+                logger.debug("发送实时音频块 - SessionId: {}, 数据大小: {} bytes", sessionId, opusData.length);
+            }
+        } catch (Exception e) {
+            logger.error("发送实时音频块失败 - SessionId: " + sessionId, e);
+        }
+    }
+
+    /**
+     * 发送实时文本增量到客户端
+     */
+    public void sendRealtimeTextDelta(ChatSession session, String textDelta) {
+        try {
+            messageService.sendRealtimeTextDelta(session, textDelta);
+            logger.debug("发送实时文本增量 - SessionId: {}, 文本: {}", session.getSessionId(), textDelta);
+        } catch (Exception e) {
+            logger.error("发送实时文本增量失败 - SessionId: " + session.getSessionId(), e);
+        }
+    }
+
+    /**
+     * 发送实时响应完成通知
+     */
+    public void sendRealtimeResponseComplete(ChatSession session) {
+        try {
+            messageService.sendRealtimeResponseComplete(session);
+            logger.info("发送实时响应完成通知 - SessionId: {}", session.getSessionId());
+        } catch (Exception e) {
+            logger.error("发送实时响应完成通知失败 - SessionId: " + session.getSessionId(), e);
+        }
+    }
+
+    /**
+     * 发送转录结果到客户端
+     */
+    public void sendTranscriptionResult(ChatSession session, String transcript) {
+        try {
+            messageService.sendTranscriptionResult(session, transcript);
+            logger.info("发送转录结果 - SessionId: {}, 文本: {}", session.getSessionId(), transcript);
+        } catch (Exception e) {
+            logger.error("发送转录结果失败 - SessionId: " + session.getSessionId(), e);
+        }
+    }
+
 }

@@ -55,6 +55,18 @@
     
     <!-- 可选的输入区域 -->
     <div v-if="showInput" class="chat-input-area">
+      <!-- 对话模式选择器 -->
+      <div class="dialogue-mode-selector" v-if="showModeSelector">
+        <a-radio-group v-model="dialogueMode" @change="handleModeChange" size="small">
+          <a-radio-button value="traditional">
+            <a-icon type="message" /> 传统模式
+          </a-radio-button>
+          <a-radio-button value="realtime">
+            <a-icon type="audio" /> 实时对话
+          </a-radio-button>
+        </a-radio-group>
+      </div>
+      
       <!-- 文本输入 -->
       <div class="text-input-wrapper">
         <!-- 切换按钮移到左侧 -->
@@ -144,6 +156,11 @@ export default {
       type: Boolean,
       default: true
     },
+    // 是否显示对话模式选择器
+    showModeSelector: {
+      type: Boolean,
+      default: true
+    },
     // 传入的消息列表
     messageList: {
       type: Array,
@@ -199,7 +216,8 @@ export default {
       inputMessage: '',
       messages: [],
       isVoiceMode: false,
-      isRecording: false
+      isRecording: false,
+      dialogueMode: 'traditional' // 默认传统模式
     };
   },
   watch: {
@@ -291,6 +309,17 @@ export default {
       if (this.messageClickable) {
         this.$emit('message-click', message);
       }
+    },
+
+    // 处理对话模式变化
+    handleModeChange(e) {
+      const newMode = e.target.value;
+      this.dialogueMode = newMode;
+      this.$emit('mode-change', newMode);
+      
+      // 显示模式切换提示
+      const modeText = newMode === 'realtime' ? '实时对话' : '传统模式';
+      this.$message.info(`已切换到${modeText}模式`);
     },
 
     // 开始录音
@@ -829,6 +858,44 @@ export default {
     box-shadow: 0 0 0 12px rgba(255, 107, 107, 0);
     transform: scale(1);
   }
+}
+
+/* 对话模式选择器样式 */
+.dialogue-mode-selector {
+  padding: 8px 0;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: center;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dialogue-mode-selector :deep(.ant-radio-group) {
+  display: flex;
+  gap: 8px;
+}
+
+.dialogue-mode-selector :deep(.ant-radio-button-wrapper) {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.dialogue-mode-selector :deep(.ant-radio-button-wrapper:hover) {
+  background-color: #f5f5f5;
+}
+
+.dialogue-mode-selector :deep(.ant-radio-button-wrapper-checked) {
+  background-color: #1890ff;
+  color: white;
+  border-color: #1890ff;
+}
+
+.dialogue-mode-selector :deep(.ant-radio-button-wrapper-checked:hover) {
+  background-color: #40a9ff;
+  border-color: #40a9ff;
 }
 
 /* 响应式调整 */

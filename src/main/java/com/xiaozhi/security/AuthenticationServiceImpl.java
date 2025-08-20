@@ -53,4 +53,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         return encodePassword.equals(encryptPassword);
     }
 
+    public static void main(String[] args) {
+        AuthenticationServiceImpl authenticationService = new AuthenticationServiceImpl();
+        System.out.println(authenticationService.encryptPassword("qwe123456"));
+    }
+
 }

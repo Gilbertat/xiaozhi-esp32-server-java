@@ -358,6 +358,107 @@ public class AudioUtils {
     }
 
     /**
+     * 将PCM数据转换为WAV格式字节数组
+     *
+     * @param pcmData PCM音频数据
+     * @param sampleRate 采样率
+     * @param channels 通道数
+     * @param bitsPerSample 每个样本的位数
+     * @return WAV格式的字节数组
+     */
+    public static byte[] pcmToWav(byte[] pcmData, int sampleRate, int channels, int bitsPerSample) {
+        try {
+            // 计算WAV文件头大小：44字节
+            int headerSize = 44;
+            int dataSize = pcmData.length;
+            int fileSize = headerSize - 8 + dataSize; // 减去8是因为不包括前8个字节
+
+            byte[] wavData = new byte[headerSize + dataSize];
+            int offset = 0;
+
+            // RIFF头
+            wavData[offset++] = 'R';
+            wavData[offset++] = 'I';
+            wavData[offset++] = 'F';
+            wavData[offset++] = 'F';
+            
+            // 文件大小（小端序）
+            wavData[offset++] = (byte) (fileSize & 0xff);
+            wavData[offset++] = (byte) ((fileSize >> 8) & 0xff);
+            wavData[offset++] = (byte) ((fileSize >> 16) & 0xff);
+            wavData[offset++] = (byte) ((fileSize >> 24) & 0xff);
+
+            // WAVE标识
+            wavData[offset++] = 'W';
+            wavData[offset++] = 'A';
+            wavData[offset++] = 'V';
+            wavData[offset++] = 'E';
+
+            // fmt子块
+            wavData[offset++] = 'f';
+            wavData[offset++] = 'm';
+            wavData[offset++] = 't';
+            wavData[offset++] = ' ';
+
+            // fmt子块大小（16字节，小端序）
+            wavData[offset++] = 16;
+            wavData[offset++] = 0;
+            wavData[offset++] = 0;
+            wavData[offset++] = 0;
+
+            // 音频格式（1 = PCM，小端序）
+            wavData[offset++] = 1;
+            wavData[offset++] = 0;
+
+            // 通道数（小端序）
+            wavData[offset++] = (byte) (channels & 0xff);
+            wavData[offset++] = (byte) ((channels >> 8) & 0xff);
+
+            // 采样率（小端序）
+            wavData[offset++] = (byte) (sampleRate & 0xff);
+            wavData[offset++] = (byte) ((sampleRate >> 8) & 0xff);
+            wavData[offset++] = (byte) ((sampleRate >> 16) & 0xff);
+            wavData[offset++] = (byte) ((sampleRate >> 24) & 0xff);
+
+            // 字节率（小端序）
+            int byteRate = sampleRate * channels * bitsPerSample / 8;
+            wavData[offset++] = (byte) (byteRate & 0xff);
+            wavData[offset++] = (byte) ((byteRate >> 8) & 0xff);
+            wavData[offset++] = (byte) ((byteRate >> 16) & 0xff);
+            wavData[offset++] = (byte) ((byteRate >> 24) & 0xff);
+
+            // 块对齐（小端序）
+            int blockAlign = channels * bitsPerSample / 8;
+            wavData[offset++] = (byte) (blockAlign & 0xff);
+            wavData[offset++] = (byte) ((blockAlign >> 8) & 0xff);
+
+            // 每个样本的位数（小端序）
+            wavData[offset++] = (byte) (bitsPerSample & 0xff);
+            wavData[offset++] = (byte) ((bitsPerSample >> 8) & 0xff);
+
+            // data子块
+            wavData[offset++] = 'd';
+            wavData[offset++] = 'a';
+            wavData[offset++] = 't';
+            wavData[offset++] = 'a';
+
+            // 数据大小（小端序）
+            wavData[offset++] = (byte) (dataSize & 0xff);
+            wavData[offset++] = (byte) ((dataSize >> 8) & 0xff);
+            wavData[offset++] = (byte) ((dataSize >> 16) & 0xff);
+            wavData[offset++] = (byte) ((dataSize >> 24) & 0xff);
+
+            // 复制PCM数据
+            System.arraycopy(pcmData, 0, wavData, offset, dataSize);
+
+            return wavData;
+        } catch (Exception e) {
+            logger.error("PCM转WAV失败", e);
+            return pcmData; // 返回原始数据作为备用
+        }
+    }
+
+    /**
      * 检测音频文件格式并返回MIME类型
      *
      * @param filePath 音频文件路径

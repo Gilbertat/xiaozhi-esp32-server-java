@@ -98,6 +98,11 @@ export default new Router({
               component: resolve => require(["@/views/page/config/TtsConfig"], resolve),
               meta: { title: "语音合成配置", parent: "配置管理", isAdmin: 1 },
             },
+            {
+              path: "/config/realtime",
+              component: resolve => require(["@/views/page/config/RealtimeConfig"], resolve),
+              meta: { title: "实时对话配置", parent: "配置管理", isAdmin: 1 },
+            },
           ]
         },
         {

@@ -81,6 +81,7 @@ public class TtsServiceFactory {
             case "volcengine" -> new VolcengineTtsService(config, voiceName, outputPath);
             case "xfyun" -> new XfyunTtsService(config, voiceName, outputPath);
             case "minimax" -> new MiniMaxTtsService(config, voiceName, outputPath);
+            case "openai" -> new OpenAITtsService(config, voiceName, outputPath);
             default -> new EdgeTtsService(voiceName, outputPath);
         };
     }

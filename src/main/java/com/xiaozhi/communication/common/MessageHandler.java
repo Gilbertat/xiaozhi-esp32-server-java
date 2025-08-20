@@ -9,6 +9,7 @@ import com.xiaozhi.dialogue.llm.tool.ToolsSessionHolder;
 import com.xiaozhi.dialogue.service.AudioService;
 import com.xiaozhi.dialogue.service.DialogueService;
 import com.xiaozhi.dialogue.service.IotService;
+import com.xiaozhi.dialogue.service.RealtimeService;
 import com.xiaozhi.dialogue.service.VadService;
 import com.xiaozhi.dialogue.stt.factory.SttServiceFactory;
 import com.xiaozhi.dialogue.tts.factory.TtsServiceFactory;
@@ -78,6 +79,9 @@ public class MessageHandler {
 
     @Resource
     private SysRoleService roleService;
+
+    @Resource
+    private RealtimeService realtimeService;
 
     // 用于存储设备ID和验证码生成状态的映射
     private final Map<String, Boolean> captchaGenerationInProgress = new ConcurrentHashMap<>();
@@ -182,6 +186,8 @@ public class MessageHandler {
         audioService.cleanupSession(sessionId);
         // 清理对话
         dialogueService.cleanupSession(sessionId);
+        // 清理Realtime服务
+        realtimeService.cleanupSession(sessionId);
         // 清理Conversation缓存的对话历史。
         Conversation conversation = chatSession.getConversation();
         if (conversation != null) {
@@ -200,9 +206,15 @@ public class MessageHandler {
         if ((chatSession == null || !chatSession.isOpen()) && !vadService.isSessionInitialized(sessionId)) {
             return;
         }
-        // 委托给DialogueService处理音频数据
-        dialogueService.processAudioData(chatSession, opusData);
-
+        
+        // 检查是否使用Realtime模式
+        if (isRealtimeMode(chatSession)) {
+            // 将音频数据发送到OpenAI Realtime
+            realtimeService.sendAudioData(sessionId, opusData);
+        } else {
+            // 使用传统的STT+LLM+TTS模式
+            dialogueService.processAudioData(chatSession, opusData);
+        }
     }
 
     public void handleUnboundDevice(String sessionId, SysDevice device) {
@@ -279,7 +291,13 @@ public class MessageHandler {
         logger.info("收到listen消息 - SessionId: {}, State: {}, Mode: {}", sessionId, message.getState(), message.getMode());
         chatSession.setMode(message.getMode());
 
-        // 根据state处理不同的监听状态
+        // 检查是否使用Realtime模式
+        if (isRealtimeMode(chatSession)) {
+            handleRealtimeListenMessage(chatSession, message);
+            return;
+        }
+
+        // 传统模式处理
         switch (message.getState()) {
             case ListenState.Start:
                 // 开始监听，准备接收音频数据
@@ -316,6 +334,40 @@ public class MessageHandler {
 
             default:
                 logger.warn("未知的listen状态: {}", message.getState());
+        }
+    }
+
+    /**
+     * 处理Realtime模式的listen消息
+     */
+    private void handleRealtimeListenMessage(ChatSession chatSession, ListenMessage message) {
+        String sessionId = chatSession.getSessionId();
+        
+        switch (message.getState()) {
+            case ListenState.Start:
+                logger.info("开始Realtime对话 - SessionId: {}", sessionId);
+                realtimeService.startRealtimeConversation(sessionId);
+                break;
+
+            case ListenState.Stop:
+                logger.info("停止Realtime对话 - SessionId: {}", sessionId);
+                realtimeService.stopRealtimeConversation(sessionId);
+                break;
+
+            case ListenState.Text:
+                // Realtime模式下的文本输入
+                logger.info("Realtime文本输入 - SessionId: {}, 文本: {}", sessionId, message.getText());
+                realtimeService.sendTextInput(sessionId, message.getText());
+                break;
+
+            case ListenState.Detect:
+                // Realtime模式下检测到唤醒词
+                logger.info("Realtime唤醒词检测 - SessionId: {}, 文本: {}", sessionId, message.getText());
+                // 在Realtime模式下，唤醒词检测可能需要特殊处理
+                break;
+
+            default:
+                logger.warn("Realtime模式下未知的listen状态: {}", message.getState());
         }
     }
 
@@ -366,5 +418,26 @@ public class MessageHandler {
             default -> {
             }
         }
+    }
+
+    /**
+     * 判断是否使用Realtime模式
+     */
+    private boolean isRealtimeMode(ChatSession chatSession) {
+        if (chatSession == null) {
+            return false;
+        }
+        
+        String sessionId = chatSession.getSessionId();
+        SysDevice device = sessionManager.getDeviceConfig(sessionId);
+        
+        if (device == null || device.getRoleId() == null) {
+            return false;
+        }
+        
+        // 检查设备是否配置了realtime模式
+        // 这里可以通过设备配置或角色配置来判断
+        // 目前简单检查是否有活跃的realtime连接
+        return realtimeService.hasActiveRealtimeConnection(sessionId);
     }
 }

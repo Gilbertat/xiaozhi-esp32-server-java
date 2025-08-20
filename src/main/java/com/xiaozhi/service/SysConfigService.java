@@ -49,4 +49,20 @@ public interface SysConfigService {
    * 查询默认配置
    */
   SysConfig selectModelType(String modelType);
+
+  /**
+   * 根据条件查询配置（返回第一个匹配的）
+   * 
+   * @param config 查询条件
+   * @return 匹配的配置
+   */
+  SysConfig selectConfigByConditions(SysConfig config);
+
+  /**
+   * 根据条件查询配置（返回第一个匹配的）
+   * 
+   * @param config 查询条件
+   * @return 匹配的配置
+   */
+  SysConfig selectConfigByCondition(SysConfig config);
 }

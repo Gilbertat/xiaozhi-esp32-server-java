@@ -14,7 +14,7 @@ public interface AuthenticationService {
    * @param rawPassword
    * @return 加密后的密码
    */
-  public String encryptPassword(String rawPassword);
+   String encryptPassword(String rawPassword);
 
   /**
    * 密码验证
@@ -23,5 +23,5 @@ public interface AuthenticationService {
    * @param encryptPassword
    * @return 是否相同
    */
-  public Boolean isPasswordValid(String rawPassword, String encryptPassword);
+   Boolean isPasswordValid(String rawPassword, String encryptPassword);
 }

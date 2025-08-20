@@ -120,4 +120,62 @@ public class MessageService {
         }
     }
 
+    // ========== OpenAI Realtime 相关方法 ==========
+
+    /**
+     * 发送实时文本增量消息
+     */
+    public void sendRealtimeTextDelta(ChatSession session, String textDelta) {
+        if (session == null || !session.isOpen()) {
+            logger.warn("sendRealtimeTextDelta无法发送消息 - 会话已关闭或为null");
+            return;
+        }
+        
+        ObjectNode messageJson = objectMapper.createObjectNode();
+        messageJson.put("type", "realtime");
+        messageJson.put("event", "text_delta");
+        messageJson.put("delta", textDelta);
+        
+        String jsonMessage = messageJson.toString();
+        logger.debug("sendRealtimeTextDelta发送消息 - SessionId: {}, Delta: {}", session.getSessionId(), textDelta);
+        sendTextMessage(session, jsonMessage);
+    }
+
+    /**
+     * 发送实时响应完成消息
+     */
+    public void sendRealtimeResponseComplete(ChatSession session) {
+        if (session == null || !session.isOpen()) {
+            logger.warn("sendRealtimeResponseComplete无法发送消息 - 会话已关闭或为null");
+            return;
+        }
+        
+        ObjectNode messageJson = objectMapper.createObjectNode();
+        messageJson.put("type", "realtime");
+        messageJson.put("event", "response_complete");
+        
+        String jsonMessage = messageJson.toString();
+        logger.info("sendRealtimeResponseComplete发送消息 - SessionId: {}", session.getSessionId());
+        sendTextMessage(session, jsonMessage);
+    }
+
+    /**
+     * 发送转录结果消息
+     */
+    public void sendTranscriptionResult(ChatSession session, String transcript) {
+        if (session == null || !session.isOpen()) {
+            logger.warn("sendTranscriptionResult无法发送消息 - 会话已关闭或为null");
+            return;
+        }
+        
+        ObjectNode messageJson = objectMapper.createObjectNode();
+        messageJson.put("type", "realtime");
+        messageJson.put("event", "transcription");
+        messageJson.put("text", transcript);
+        
+        String jsonMessage = messageJson.toString();
+        logger.info("sendTranscriptionResult发送消息 - SessionId: {}, 转录: {}", session.getSessionId(), transcript);
+        sendTextMessage(session, jsonMessage);
+    }
+
 }
