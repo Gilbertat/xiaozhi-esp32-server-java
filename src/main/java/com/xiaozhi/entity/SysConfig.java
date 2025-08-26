@@ -43,7 +43,7 @@ public class SysConfig extends Base<SysConfig> {
     /**
      * 配置类型（llm\stt\tts）
      */
-    @Schema(description = "配置类型（llm\\stt\\tts）")
+    @Schema(description = "配置类型（llm\\stt\\tts\\realtime）")
     private String configType;
 
     /**

@@ -123,7 +123,7 @@ public class ChatModelFactory {
                 return new CozeChatModel(token, model);
             // 默认为 openai 协议
             default:
-                return newOpenAiChatModel(endpoint, appId, apiKey, apiSecret, model, temperature, topP);
+                return newOpenAiChatModel(endpoint, appId, apiKey, apiSecret, model, temperature, topP, config.getConfigType());
         }
     }
 
@@ -145,15 +145,35 @@ public class ChatModelFactory {
         return chatModel;
     }
 
-    private ChatModel newOpenAiChatModel(String endpoint, String appId, String apiKey, String apiSecret, String model, Double temperature, Double topP) {
+    private ChatModel newOpenAiChatModel(String endpoint, String appId, String apiKey, String apiSecret, String model, Double temperature, Double topP, String configType) {
         MultiValueMap<String, String> headers = new LinkedMultiValueMap<>();
         headers.add("Content-Type", "application/json");
+        String completionsPath = "/chat/completions";
+        if (configType.equals("realtime")) {
+            completionsPath = "/v1/realtime";
+        }
+        var openAiApi = buildOpenAIModel(endpoint, apiKey, headers, completionsPath);
+        var openAiChatOptions = OpenAiChatOptions.builder()
+                .model(model)
+                .temperature(temperature)
+                .topP(topP)
+                .build();
 
+        var chatModel = OpenAiChatModel.builder()
+                .openAiApi(openAiApi)
+                .defaultOptions(openAiChatOptions)
+                .toolCallingManager(toolCallingManager)
+                .build();
+        logger.info("Using OpenAi model: {}", model);
+        return chatModel;
+    }
+
+    private OpenAiApi buildOpenAIModel(String endpoint, String apiKey, MultiValueMap<String, String> headers, String completionsPath) {
         // LM Studio不支持Http/2，所以需要强制使用HTTP/1.1
-        var openAiApi = OpenAiApi.builder()
+        return OpenAiApi.builder()
                 .apiKey(StringUtils.hasText(apiKey) ? new SimpleApiKey(apiKey) : new NoopApiKey())
                 .baseUrl(endpoint)
-                .completionsPath("/chat/completions")
+                .completionsPath(completionsPath)
                 .headers(headers)
                 .webClientBuilder(WebClient.builder()
                         // Force HTTP/1.1 for streaming
@@ -168,19 +188,6 @@ public class ChatModelFactory {
                                 .connectTimeout(Duration.ofSeconds(30))
                                 .build())))
                 .build();
-        var openAiChatOptions = OpenAiChatOptions.builder()
-                .model(model)
-                .temperature(temperature)
-                .topP(topP)
-                .build();
-
-        var chatModel = OpenAiChatModel.builder()
-                .openAiApi(openAiApi)
-                .defaultOptions(openAiChatOptions)
-                .toolCallingManager(toolCallingManager)
-                .build();
-        logger.info("Using OpenAi model: {}", model);
-        return chatModel;
     }
 
     private ChatModel newZhipuChatModel(String endpoint, String appId, String apiKey, String apiSecret, String model, Double temperature, Double topP) {

@@ -8,6 +8,7 @@ import com.xiaozhi.service.SysConfigService;
 import com.xiaozhi.utils.JsonUtil;
 import jakarta.annotation.Resource;
 import okhttp3.*;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -77,7 +78,7 @@ public class RealtimeService {
             return true;
             
         } catch (Exception e) {
-            logger.error("Failed to start realtime conversation for sessionId: " + sessionId, e);
+            logger.error("Failed to start realtime conversation for sessionId: {}", sessionId, e);
             return false;
         }
     }
@@ -122,7 +123,10 @@ public class RealtimeService {
      */
     public boolean hasActiveRealtimeConnection(String sessionId) {
         RealtimeConnection connection = realtimeConnections.get(sessionId);
-        return connection != null && connection.isConnected();
+        if (null == connection) {
+            return startRealtimeConversation(sessionId);
+        }
+        return connection.isConnected();
     }
     
     /**
@@ -160,7 +164,7 @@ public class RealtimeService {
         try {
             String apiKey = config.getApiKey();
             String baseUrl = config.getBaseUrl() != null ? config.getBaseUrl() : REALTIME_API_URL;
-            String model = config.getModelName() != null ? config.getModelName() : "gpt-4o-realtime-preview-2024-10-01";
+            String model = config.getModelName() != null ? config.getModelName() : "gpt-4o-realtime-preview-2025-06-03";
             
             // 构建WebSocket URL
             String wsUrl = baseUrl + "?model=" + model;
@@ -183,7 +187,7 @@ public class RealtimeService {
             return connection;
             
         } catch (Exception e) {
-            logger.error("Failed to create realtime connection for sessionId: " + sessionId, e);
+            logger.error("Failed to create realtime connection for sessionId: {}", sessionId, e);
             return null;
         }
     }
@@ -276,7 +280,7 @@ public class RealtimeService {
         
         private class RealtimeWebSocketListener extends WebSocketListener {
             @Override
-            public void onOpen(WebSocket webSocket, Response response) {
+            public void onOpen(@NotNull WebSocket webSocket, @NotNull Response response) {
                 connected = true;
                 logger.info("Realtime WebSocket connected for sessionId: {}", sessionId);
                 
@@ -306,7 +310,7 @@ public class RealtimeService {
             }
             
             @Override
-            public void onMessage(WebSocket webSocket, String text) {
+            public void onMessage(@NotNull WebSocket webSocket, @NotNull String text) {
                 try {
                     JSONObject message = new JSONObject(text);
                     String type = message.optString("type");
@@ -346,13 +350,13 @@ public class RealtimeService {
             }
             
             @Override
-            public void onFailure(WebSocket webSocket, Throwable t, Response response) {
+            public void onFailure(@NotNull WebSocket webSocket, @NotNull Throwable t, Response response) {
                 connected = false;
-                logger.error("Realtime WebSocket failed for sessionId: " + sessionId, t);
+                logger.error("Realtime WebSocket failed for sessionId: {}", sessionId, t);
             }
             
             @Override
-            public void onClosing(WebSocket webSocket, int code, String reason) {
+            public void onClosing(@NotNull WebSocket webSocket, int code, @NotNull String reason) {
                 connected = false;
                 logger.info("Realtime WebSocket closing for sessionId: {}, code: {}, reason: {}", 
                            sessionId, code, reason);
@@ -443,7 +447,7 @@ public class RealtimeService {
         
         private void handleError(JSONObject message) {
             String errorMessage = message.optString("message", "Unknown error");
-            logger.error("Realtime API error for sessionId: {}, error: {}", sessionId, errorMessage);
+            logger.error("Realtime API error for sessionId: {}, error: {}", sessionId, message);
         }
     }
 }
