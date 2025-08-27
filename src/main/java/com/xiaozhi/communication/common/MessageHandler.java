@@ -208,7 +208,11 @@ public class MessageHandler {
         }
         
         // 检查是否使用Realtime模式
-        if (isRealtimeMode(chatSession)) {
+        boolean isRealtime = isRealtimeMode(chatSession);
+        logger.debug("🎵 Audio data received - SessionId: {}, Size: {} bytes, IsRealtimeMode: {}", 
+                    sessionId, opusData.length, isRealtime);
+                    
+        if (isRealtime) {
             // 将音频数据发送到OpenAI Realtime
             realtimeService.sendAudioData(sessionId, opusData);
         } else {
@@ -292,7 +296,11 @@ public class MessageHandler {
         chatSession.setMode(message.getMode());
 
         // 检查是否使用Realtime模式
-        if (isRealtimeMode(chatSession)) {
+        boolean isRealtime = isRealtimeMode(chatSession);
+        logger.info("🔍 Listen message handling - SessionId: {}, State: {}, IsRealtimeMode: {}", 
+                   sessionId, message.getState(), isRealtime);
+                   
+        if (isRealtime) {
             handleRealtimeListenMessage(chatSession, message);
             return;
         }
@@ -329,7 +337,14 @@ public class MessageHandler {
 
             case ListenState.Detect:
                 // 检测到唤醒词
-                dialogueService.handleWakeWord(chatSession, message.getText());
+                if (isRealtimeMode(chatSession)) {
+                    // Realtime模式下处理唤醒词
+                    logger.info("Realtime模式唤醒词检测 - SessionId: {}, 文本: {}", sessionId, message.getText());
+                    realtimeService.sendTextInput(sessionId, message.getText());
+                } else {
+                    // 传统模式下处理唤醒词
+                    dialogueService.handleWakeWord(chatSession, message.getText());
+                }
                 break;
 
             default:
@@ -363,7 +378,8 @@ public class MessageHandler {
             case ListenState.Detect:
                 // Realtime模式下检测到唤醒词
                 logger.info("Realtime唤醒词检测 - SessionId: {}, 文本: {}", sessionId, message.getText());
-                // 在Realtime模式下，唤醒词检测可能需要特殊处理
+                // 在Realtime模式下，直接通过RealtimeService发送唤醒词文本
+                realtimeService.sendTextInput(sessionId, message.getText());
                 break;
 
             default:
@@ -425,6 +441,7 @@ public class MessageHandler {
      */
     private boolean isRealtimeMode(ChatSession chatSession) {
         if (chatSession == null) {
+            logger.debug("ChatSession is null, not realtime mode");
             return false;
         }
         
@@ -432,12 +449,30 @@ public class MessageHandler {
         SysDevice device = sessionManager.getDeviceConfig(sessionId);
         
         if (device == null || device.getRoleId() == null) {
+            logger.debug("Device or roleId is null for sessionId: {}, not realtime mode", sessionId);
             return false;
         }
         
-        // 检查设备是否配置了realtime模式
-        // 这里可以通过设备配置或角色配置来判断
-        // 目前简单检查是否有活跃的realtime连接
-        return realtimeService.hasActiveRealtimeConnection(sessionId);
+        // 检查角色配置是否使用Realtime模式
+        SysRole role = roleService.selectRoleById(device.getRoleId());
+        if (role == null || role.getModelId() == null) {
+            logger.debug("Role or modelId is null for sessionId: {}, not realtime mode", sessionId);
+            return false;
+        }
+        
+        SysConfig config = configService.selectConfigById(role.getModelId());
+        if (config == null) {
+            logger.debug("Config is null for sessionId: {}, not realtime mode", sessionId);
+            return false;
+        }
+        
+        // 检查配置类型是否为realtime，或者模型名称包含realtime
+        boolean isRealtime = "realtime".equals(config.getConfigType()) || 
+                           (config.getModelName() != null && config.getModelName().toLowerCase().contains("realtime"));
+        
+        logger.info("🔍 Realtime mode check for sessionId: {} - ConfigType: {}, ModelName: {}, IsRealtime: {}", 
+                   sessionId, config.getConfigType(), config.getModelName(), isRealtime);
+        
+        return isRealtime;
     }
 }

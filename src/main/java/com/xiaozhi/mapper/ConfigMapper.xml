@@ -3,7 +3,7 @@
 <mapper namespace="com.xiaozhi.dao.ConfigMapper">
 
     <sql id="configSql">
-        sys_config.configId, sys_config.userId, sys_config.configName, sys_config.configDesc, sys_config.configType, sys_config.modelType, sys_config.provider,
+        sys_config.configId, sys_config.userId, sys_config.configName, sys_config.configDesc, sys_config.configType, sys_config.modelType, sys_config.modelName, sys_config.provider,
         sys_config.appId, sys_config.apiKey, sys_config.apiSecret, sys_config.ak, sys_config.sk, sys_config.apiUrl, sys_config.isDefault, sys_config.state, sys_config.createTime
     </sql>
 

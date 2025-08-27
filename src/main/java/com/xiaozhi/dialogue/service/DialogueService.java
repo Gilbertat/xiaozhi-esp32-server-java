@@ -873,6 +873,12 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
                 return;
             }
 
+            // 检查是否为Realtime模式，如果是则不应该在这里处理
+            if (isRealtimeMode(session)) {
+                logger.warn("Realtime模式不应该调用DialogueService.handleWakeWord，应该使用RealtimeService处理");
+                return;
+            }
+
             handleText(session, text, timeMillis -> {
                 // 使用句子切分处理流式响应
                 chatService.chatStreamBySentence(session, text, false,
@@ -887,6 +893,30 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
         } catch (Exception e) {
             logger.error("处理唤醒词失败: {}", e.getMessage(), e);
         }
+    }
+
+    /**
+     * 检查是否为Realtime模式
+     */
+    private boolean isRealtimeMode(ChatSession chatSession) {
+        if (chatSession == null) {
+            return false;
+        }
+        
+        String sessionId = chatSession.getSessionId();
+        SysDevice device = sessionManager.getDeviceConfig(sessionId);
+        
+        if (device == null || device.getRoleId() == null) {
+            return false;
+        }
+        
+        SysRole role = roleService.selectRoleById(device.getRoleId());
+        if (role == null || role.getModelId() == null) {
+            return false;
+        }
+        
+        SysConfig config = configService.selectConfigById(role.getModelId());
+        return config != null && "realtime".equals(config.getConfigType());
     }
 
     /**
