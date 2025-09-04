@@ -198,7 +198,7 @@ public class OpenAITtsService implements TtsService {
         AudioFormat originalFormat = originalStream.getFormat();
 
         // 目标格式：16kHz，小端，保持位深/声道
-        AudioFormat targetFormat = new AudioFormat(
+        return new AudioFormat(
                 AudioFormat.Encoding.PCM_SIGNED,
                 16000,                     // 采样率
                 originalFormat.getSampleSizeInBits(), // 位深
@@ -207,7 +207,6 @@ public class OpenAITtsService implements TtsService {
                 16000,                                // frame rate
                 false                                 // 强制小端字节序
         );
-        return targetFormat;
     }
 
 

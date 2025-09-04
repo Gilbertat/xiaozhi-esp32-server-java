@@ -349,25 +349,25 @@ public class MessageHandler {
             case ListenState.Start:
                 // 开始监听
                 logger.info("开始监听请求 - Mode: {}", message.getMode());
-
-                if (audioService.isPlaying(sessionId)) {
-                    // 如果还在播音，延迟进入监听
-                    logger.warn("设备端请求开始监听，但当前还在播音，延迟处理 - SessionId: {}", sessionId);
-
-                    long delayMillis = audioService.getRemainingPlayTimeMillis(sessionId) + 300; // 播放剩余时间 + 300ms缓冲
-                    scheduler.schedule(() -> {
-                        if (!audioService.isPlaying(sessionId)) {
-                            logger.info("延迟进入监听 - SessionId: {}", sessionId);
-                            vadService.initSession(sessionId);
-                        } else {
-                            logger.warn("延迟后仍在播音，放弃进入监听 - SessionId: {}", sessionId);
-                        }
-                    }, delayMillis, TimeUnit.MILLISECONDS);
-                    audioService.clearPlayState(sessionId);
-                } else {
+//
+//                if (audioService.isPlaying(sessionId)) {
+//                    // 如果还在播音，延迟进入监听
+//                    logger.warn("设备端请求开始监听，但当前还在播音，延迟处理 - SessionId: {}", sessionId);
+//
+//                    long delayMillis = audioService.getRemainingPlayTimeMillis(sessionId) + 300; // 播放剩余时间 + 300ms缓冲
+//                    scheduler.schedule(() -> {
+//                        if (!audioService.isPlaying(sessionId)) {
+//                            logger.info("延迟进入监听 - SessionId: {}", sessionId);
+//                            vadService.initSession(sessionId);
+//                        } else {
+//                            logger.warn("延迟后仍在播音，放弃进入监听 - SessionId: {}", sessionId);
+//                        }
+//                    }, delayMillis, TimeUnit.MILLISECONDS);
+//                    audioService.clearPlayState(sessionId);
+//                } else {
                     // 没有播音，直接进入监听
                     vadService.initSession(sessionId);
-                }
+//                }
                 break;
 
             case ListenState.Stop:

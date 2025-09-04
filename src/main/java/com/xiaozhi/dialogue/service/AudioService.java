@@ -179,12 +179,12 @@ public class AudioService {
         // 标记开始播放
         AtomicBoolean playingState = isPlaying.computeIfAbsent(sessionId, k -> new AtomicBoolean(true));
         playingState.set(true);
-        // 存储句子时长
-        try {
-            registerAudioPlay(sessionId, new File(audioPath));
-        } catch (Exception e) {
-            logger.error("记录句子时长失败:", e);
-        }
+//        // 存储句子时长
+//        try {
+//            registerAudioPlay(sessionId, new File(audioPath));
+//        } catch (Exception e) {
+//            logger.error("记录句子时长失败:", e);
+//        }
         // 创建一个 CompletableFuture 链来处理整个流程
         CompletableFuture<Void> startFuture = isFirst ? CompletableFuture.runAsync(()->sendStart(session))
                 : CompletableFuture.completedFuture(null);
