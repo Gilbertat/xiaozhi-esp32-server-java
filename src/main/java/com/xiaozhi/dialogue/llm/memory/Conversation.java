@@ -74,8 +74,7 @@ public class Conversation {
      * @return 新的消息列表对象，避免污染原有的列表。
      */
     public List<Message> prompt(UserMessage userMessage){
-        List<Message> newMessages = new ArrayList<>();
-        newMessages.addAll(this.messages);
+        List<Message> newMessages = new ArrayList<>(this.messages);
         newMessages.add(userMessage);
         return newMessages;
     }

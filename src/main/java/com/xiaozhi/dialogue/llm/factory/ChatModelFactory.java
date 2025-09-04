@@ -3,6 +3,7 @@ package com.xiaozhi.dialogue.llm.factory;
 import com.xiaozhi.communication.common.ChatSession;
 import com.xiaozhi.dialogue.llm.providers.CozeChatModel;
 import com.xiaozhi.dialogue.llm.providers.DifyChatModel;
+import com.xiaozhi.dialogue.llm.providers.OpenAIWhisperChatModel;
 import com.xiaozhi.dialogue.token.factory.TokenServiceFactory;
 import com.xiaozhi.entity.SysConfig;
 import com.xiaozhi.entity.SysDevice;
@@ -12,6 +13,8 @@ import com.xiaozhi.service.SysRoleService;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,9 +87,19 @@ public class ChatModelFactory {
         return createChatModel(config, new SysRole());
     }
 
-    public ChatModel takeEmbeddingModel() {
-        SysConfig config = configService.selectModelType("embedding");
-        Assert.notNull(config, "未配置向量模型");
+    public ChatModel takeTranscriptionModel() {
+        SysConfig config = configService.selectModelType("transcription");
+        Assert.notNull(config, "未配置音频转录模型");
+        return createChatModel(config, new SysRole());
+    }
+
+    /**
+     * 根据配置创建音频转录模型
+     * @param config 配置信息
+     * @return ChatModel实例
+     */
+    public ChatModel takeTranscriptionModel(SysConfig config) {
+        Assert.notNull(config, "配置不能为空");
         return createChatModel(config, new SysRole());
     }
 
@@ -105,7 +118,14 @@ public class ChatModelFactory {
         String apiSecret = config.getApiSecret();
         Double temperature = role.getTemperature();
         Double topP = role.getTopP();
+        String configType = config.getConfigType();
         provider = provider.toLowerCase();
+        
+        // 检查是否为音频转录模型
+//        if ("transcription".equals(configType) || "whisper".equals(provider)) {
+//            return newWhisperChatModel(endpoint, apiKey, model);
+//        }
+        
         // Coze和Dify 拥有全局唯一配置，所以需要查询唯一配置信息来作为模型的 Token 获取
         SysConfig agentConfig = new SysConfig().setConfigType("agent").setUserId(config.getUserId());
         SysConfig queryConfig;
@@ -123,7 +143,7 @@ public class ChatModelFactory {
                 return new CozeChatModel(token, model);
             // 默认为 openai 协议
             default:
-                return newOpenAiChatModel(endpoint, appId, apiKey, apiSecret, model, temperature, topP, config.getConfigType());
+                return newOpenAiChatModel(endpoint, appId, apiKey, apiSecret, model, temperature, topP, configType);
         }
     }
 
@@ -147,8 +167,8 @@ public class ChatModelFactory {
 
     private ChatModel newOpenAiChatModel(String endpoint, String appId, String apiKey, String apiSecret, String model, Double temperature, Double topP, String configType) {
         MultiValueMap<String, String> headers = new LinkedMultiValueMap<>();
-        headers.add("Content-Type", "application/json");
-        String completionsPath = "/chat/completions";
+//        headers.add("Content-Type", "application/json");
+        String completionsPath = "/v1/chat/completions";
         // Realtime配置降级为普通OpenAI Chat API，因为ChatModel不支持WebSocket
         if ("realtime".equals(configType)) {
             logger.warn("Realtime configuration detected in ChatModel creation. Using standard OpenAI API instead. " +
@@ -191,6 +211,15 @@ public class ChatModelFactory {
                                 .connectTimeout(Duration.ofSeconds(30))
                                 .build())))
                 .build();
+    }
+
+    private ChatModel newWhisperChatModel(String endpoint, String apiKey, String model) {
+        String whisperEndpoint = endpoint != null ? endpoint : "https://api.openai.com/v1/audio/transcriptions";
+        String whisperModel = model != null ? model : "whisper-1";
+        
+        var chatModel = new OpenAIWhisperChatModel(apiKey, whisperEndpoint, whisperModel);
+        logger.info("Using OpenAI Whisper model: {} at {}", whisperModel, whisperEndpoint);
+        return chatModel;
     }
 
     private ChatModel newZhipuChatModel(String endpoint, String appId, String apiKey, String apiSecret, String model, Double temperature, Double topP) {

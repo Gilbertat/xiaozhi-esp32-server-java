@@ -9,6 +9,7 @@ import com.xiaozhi.dialogue.llm.tool.ToolsSessionHolder;
 import com.xiaozhi.dialogue.service.AudioService;
 import com.xiaozhi.dialogue.service.DialogueService;
 import com.xiaozhi.dialogue.service.IotService;
+import com.xiaozhi.dialogue.service.MessageService;
 import com.xiaozhi.dialogue.service.RealtimeService;
 import com.xiaozhi.dialogue.service.VadService;
 import com.xiaozhi.dialogue.stt.factory.SttServiceFactory;
@@ -31,8 +32,7 @@ import org.springframework.util.StringUtils;
 import java.util.Date;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 
 @Component
 public class MessageHandler {
@@ -83,8 +83,16 @@ public class MessageHandler {
     @Resource
     private RealtimeService realtimeService;
 
+    @Resource
+    private MessageService messageService;
+
     // 用于存储设备ID和验证码生成状态的映射
     private final Map<String, Boolean> captchaGenerationInProgress = new ConcurrentHashMap<>();
+
+    // 使用虚拟线程池处理定时任务
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(
+            Runtime.getRuntime().availableProcessors(),
+            Thread.ofVirtual().name("message-scheduler-", 0).factory());
 
     /**
      * 处理连接建立事件.
@@ -142,7 +150,7 @@ public class MessageHandler {
                             .setLastLogin(new Date().toString()));
 
                 } catch (Exception e) {
-                    logger.error("设备初始化失败 - DeviceId: " + deviceId, e);
+                    logger.error("设备初始化失败 - DeviceId: {}", deviceId, e);
                     try {
                         sessionManager.closeSession(sessionId);
                     } catch (Exception ex) {
@@ -209,10 +217,9 @@ public class MessageHandler {
         
         // 检查是否使用Realtime模式
         boolean isRealtime = isRealtimeMode(chatSession);
-        logger.debug("🎵 Audio data received - SessionId: {}, Size: {} bytes, IsRealtimeMode: {}", 
-                    sessionId, opusData.length, isRealtime);
-                    
         if (isRealtime) {
+            logger.debug("🎵 Audio data received - SessionId: {}, Size: {} bytes",
+                    sessionId, opusData.length);
             // 将音频数据发送到OpenAI Realtime
             realtimeService.sendAudioData(sessionId, opusData);
         } else {
@@ -223,7 +230,7 @@ public class MessageHandler {
 
     public void handleUnboundDevice(String sessionId, SysDevice device) {
         String deviceId = device.getDeviceId();
-        if (device == null || deviceId == null) {
+        if (deviceId == null) {
             logger.error("设备或设备ID为空，无法处理未绑定设备");
             return;
         }
@@ -290,6 +297,39 @@ public class MessageHandler {
         });
     }
 
+    /**
+     * 处理音频转录消息
+     * 支持直接音频转录或转录后对话
+     * 
+     * @param chatSession 会话信息
+     * @param audioData 音频数据
+     * @param language 语言代码（可选）
+     * @param continueChat 是否在转录后继续对话
+     */
+    public void handleAudioTranscriptionMessage(ChatSession chatSession, byte[] audioData, String language, boolean continueChat) {
+        try {
+            String sessionId = chatSession.getSessionId();
+            logger.info("处理音频转录消息 - SessionId: {}, 音频大小: {} bytes, 语言: {}, 继续对话: {}", 
+                    sessionId, audioData.length, language, continueChat);
+            
+            if (continueChat) {
+                // 转录后继续对话
+                dialogueService.processAudioTranscriptionAndChat(chatSession, audioData, language);
+            } else {
+                // 仅转录，不对话
+                String transcriptionResult = dialogueService.processAudioTranscription(chatSession, audioData, language);
+                
+                // 发送转录结果给客户端
+                messageService.sendSttMessage(chatSession, transcriptionResult);
+            }
+            
+        } catch (Exception e) {
+            logger.error("处理音频转录消息失败", e);
+            // 发送错误消息给客户端
+//            messageService.sendErrorMessage(chatSession, "音频转录失败: " + e.getMessage());
+        }
+    }
+
     private void handleListenMessage(ChatSession chatSession, ListenMessage message) {
         String sessionId = chatSession.getSessionId();
         logger.info("收到listen消息 - SessionId: {}, State: {}, Mode: {}", sessionId, message.getState(), message.getMode());
@@ -297,10 +337,9 @@ public class MessageHandler {
 
         // 检查是否使用Realtime模式
         boolean isRealtime = isRealtimeMode(chatSession);
-        logger.info("🔍 Listen message handling - SessionId: {}, State: {}, IsRealtimeMode: {}", 
-                   sessionId, message.getState(), isRealtime);
-                   
         if (isRealtime) {
+            logger.info("🔍 监测到realtimeMode - SessionId: {}, State: {}",
+                    sessionId, message.getState());
             handleRealtimeListenMessage(chatSession, message);
             return;
         }
@@ -308,27 +347,41 @@ public class MessageHandler {
         // 传统模式处理
         switch (message.getState()) {
             case ListenState.Start:
-                // 开始监听，准备接收音频数据
-                logger.info("开始监听 - Mode: {}", message.getMode());
+                // 开始监听
+                logger.info("开始监听请求 - Mode: {}", message.getMode());
 
-                // 初始化VAD会话
-                vadService.initSession(sessionId);
+                if (audioService.isPlaying(sessionId)) {
+                    // 如果还在播音，延迟进入监听
+                    logger.warn("设备端请求开始监听，但当前还在播音，延迟处理 - SessionId: {}", sessionId);
+
+                    long delayMillis = audioService.getRemainingPlayTimeMillis(sessionId) + 300; // 播放剩余时间 + 300ms缓冲
+                    scheduler.schedule(() -> {
+                        if (!audioService.isPlaying(sessionId)) {
+                            logger.info("延迟进入监听 - SessionId: {}", sessionId);
+                            vadService.initSession(sessionId);
+                        } else {
+                            logger.warn("延迟后仍在播音，放弃进入监听 - SessionId: {}", sessionId);
+                        }
+                    }, delayMillis, TimeUnit.MILLISECONDS);
+                    audioService.clearPlayState(sessionId);
+                } else {
+                    // 没有播音，直接进入监听
+                    vadService.initSession(sessionId);
+                }
                 break;
 
             case ListenState.Stop:
                 // 停止监听
                 logger.info("停止监听");
 
-                // 关闭音频流
                 sessionManager.completeAudioStream(sessionId);
                 sessionManager.closeAudioStream(sessionId);
                 sessionManager.setStreamingState(sessionId, false);
-                // 重置VAD会话
                 vadService.resetSession(sessionId);
                 break;
 
             case ListenState.Text:
-                // 检测聊天文本输入
+                // 文本输入
                 if (audioService.isPlaying(sessionId)) {
                     dialogueService.abortDialogue(chatSession, message.getMode().getValue());
                 }
@@ -336,13 +389,10 @@ public class MessageHandler {
                 break;
 
             case ListenState.Detect:
-                // 检测到唤醒词
+                // 唤醒词检测
                 if (isRealtimeMode(chatSession)) {
-                    // Realtime模式下处理唤醒词
-                    logger.info("Realtime模式唤醒词检测 - SessionId: {}, 文本: {}", sessionId, message.getText());
-                    realtimeService.sendTextInput(sessionId, message.getText());
+                    realtimeService.handleWakeWord(chatSession, message.getText());
                 } else {
-                    // 传统模式下处理唤醒词
                     dialogueService.handleWakeWord(chatSession, message.getText());
                 }
                 break;
@@ -379,7 +429,7 @@ public class MessageHandler {
                 // Realtime模式下检测到唤醒词
                 logger.info("Realtime唤醒词检测 - SessionId: {}, 文本: {}", sessionId, message.getText());
                 // 在Realtime模式下，直接通过RealtimeService发送唤醒词文本
-                realtimeService.sendTextInput(sessionId, message.getText());
+                realtimeService.handleWakeWord(chatSession, message.getText());
                 break;
 
             default:
@@ -449,7 +499,6 @@ public class MessageHandler {
         SysDevice device = sessionManager.getDeviceConfig(sessionId);
         
         if (device == null || device.getRoleId() == null) {
-            logger.debug("Device or roleId is null for sessionId: {}, not realtime mode", sessionId);
             return false;
         }
         
@@ -467,12 +516,7 @@ public class MessageHandler {
         }
         
         // 检查配置类型是否为realtime，或者模型名称包含realtime
-        boolean isRealtime = "realtime".equals(config.getConfigType()) || 
+        return "realtime".equals(config.getConfigType()) ||
                            (config.getModelName() != null && config.getModelName().toLowerCase().contains("realtime"));
-        
-        logger.info("🔍 Realtime mode check for sessionId: {} - ConfigType: {}, ModelName: {}, IsRealtime: {}", 
-                   sessionId, config.getConfigType(), config.getModelName(), isRealtime);
-        
-        return isRealtime;
     }
 }

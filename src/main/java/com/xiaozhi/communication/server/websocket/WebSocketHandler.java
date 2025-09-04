@@ -32,9 +32,6 @@ public class WebSocketHandler extends AbstractWebSocketHandler {
     private MessageHandler messageHandler;
 
     @Resource
-    private SysDeviceService deviceService;
-
-    @Resource
     private DeviceMcpService deviceMcpService;
 
     @Override

@@ -31,7 +31,6 @@ public class SileroVadModel implements VadModel {
     private OrtEnvironment env;
     private OrtSession session;
     private float[][][] state;
-    private float[][] context;
     private final int windowSize = 512; // 16kHz的窗口大小
 
     @PostConstruct
@@ -89,7 +88,6 @@ public class SileroVadModel implements VadModel {
                 state = (float[][][]) result.get(1).getValue();
 
                 // 更新上下文
-                context = x;
 
                 // 返回语音概率
                 return output[0][0];
@@ -108,7 +106,6 @@ public class SileroVadModel implements VadModel {
     @Override
     public void reset() {
         state = new float[2][1][128];
-        context = new float[0][];
     }
 
     @PreDestroy

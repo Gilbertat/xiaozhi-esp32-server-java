@@ -10,6 +10,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.sound.sampled.AudioFileFormat;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioSystem;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
@@ -17,13 +20,13 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
+
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
+
 
 /**
  * 音频服务，负责处理音频的流式和非流式发送
@@ -40,6 +43,9 @@ public class AudioService {
 
     // 仅播放文本的 Sleep 时长
     private static final long ONLY_TEXT_SLEEP_TIME_MS = 1000;
+
+    // 存储session语音结束时间
+    private final Map<String, Long> sessionPlayEndTime = new ConcurrentHashMap<>();
 
     @Autowired
     private OpusProcessor opusProcessor;
@@ -173,7 +179,12 @@ public class AudioService {
         // 标记开始播放
         AtomicBoolean playingState = isPlaying.computeIfAbsent(sessionId, k -> new AtomicBoolean(true));
         playingState.set(true);
-
+        // 存储句子时长
+        try {
+            registerAudioPlay(sessionId, new File(audioPath));
+        } catch (Exception e) {
+            logger.error("记录句子时长失败:", e);
+        }
         // 创建一个 CompletableFuture 链来处理整个流程
         CompletableFuture<Void> startFuture = isFirst ? CompletableFuture.runAsync(()->sendStart(session))
                 : CompletableFuture.completedFuture(null);
@@ -483,7 +494,7 @@ public class AudioService {
                 logger.debug("发送实时音频块 - SessionId: {}, 数据大小: {} bytes", sessionId, opusData.length);
             }
         } catch (Exception e) {
-            logger.error("发送实时音频块失败 - SessionId: " + sessionId, e);
+            logger.error("发送实时音频块失败 - SessionId: {}", sessionId, e);
         }
     }
 
@@ -507,7 +518,7 @@ public class AudioService {
             messageService.sendRealtimeResponseComplete(session);
             logger.info("发送实时响应完成通知 - SessionId: {}", session.getSessionId());
         } catch (Exception e) {
-            logger.error("发送实时响应完成通知失败 - SessionId: " + session.getSessionId(), e);
+            logger.error("发送实时响应完成通知失败 - SessionId: {}", session.getSessionId(), e);
         }
     }
 
@@ -519,8 +530,34 @@ public class AudioService {
             messageService.sendTranscriptionResult(session, transcript);
             logger.info("发送转录结果 - SessionId: {}, 文本: {}", session.getSessionId(), transcript);
         } catch (Exception e) {
-            logger.error("发送转录结果失败 - SessionId: " + session.getSessionId(), e);
+            logger.error("发送转录结果失败 - SessionId: {}", session.getSessionId(), e);
         }
+    }
+
+    // 在发送音频时调用
+    public void registerAudioPlay(String sessionId, File audioFile) throws Exception {
+        AudioFileFormat fileFormat = AudioSystem.getAudioFileFormat(audioFile);
+        AudioFormat format = fileFormat.getFormat();
+        long frames = fileFormat.getFrameLength();
+        double durationInSeconds = (frames + 0.0) / format.getFrameRate();
+        long durationMillis = (long) (durationInSeconds * 1000);
+
+        long endTime = System.currentTimeMillis() + durationMillis;
+        sessionPlayEndTime.put(sessionId, endTime);
+    }
+
+    // 查询剩余播放时间
+    public long getRemainingPlayTimeMillis(String sessionId) {
+        Long endTime = sessionPlayEndTime.get(sessionId);
+        if (endTime == null) {
+            return 0;
+        }
+        return Math.max(0, endTime - System.currentTimeMillis());
+    }
+
+    // 播放结束时清理
+    public void clearPlayState(String sessionId) {
+        sessionPlayEndTime.remove(sessionId);
     }
 
 }

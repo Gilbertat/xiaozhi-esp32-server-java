@@ -1,10 +1,11 @@
 package com.xiaozhi.dialogue.llm;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xiaozhi.communication.common.ChatSession;
 import com.xiaozhi.dialogue.llm.api.StreamResponseListener;
 import com.xiaozhi.dialogue.llm.factory.ChatModelFactory;
 import com.xiaozhi.dialogue.llm.memory.ChatMemory;
-import com.xiaozhi.entity.SysMessage;
+
 import com.xiaozhi.utils.EmojiUtils;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -72,7 +73,7 @@ public class ChatService {
 
     /**
      * 处理用户查询（同步方式）
-     * 
+     *
      * @param session         会话信息
      * @param message         用户消息
      * @param useFunctionCall 是否使用函数调用
@@ -91,18 +92,18 @@ public class ChatService {
 
             UserMessage userMessage = new UserMessage(message);
             List<Message> messages = session.getConversation().prompt(userMessage);
-            Prompt prompt = new Prompt(messages,chatOptions);
+            Prompt prompt = new Prompt(messages, chatOptions);
 
             ChatResponse chatResponse = chatModel.call(prompt);
-            if (chatResponse == null || chatResponse.getResult().getOutput().getText() == null) {
+            if (chatResponse.getResult().getOutput().getText() == null) {
                 logger.warn("模型响应为空或无生成内容");
                 return "抱歉，我在处理您的请求时遇到了问题。请稍后再试。";
             }
-            AssistantMessage assistantMessage =chatResponse.getResult().getOutput();
+            AssistantMessage assistantMessage = chatResponse.getResult().getOutput();
 
             Thread.startVirtualThread(() -> {// 异步持久化
                 // 保存AI消息，会被持久化至数据库。
-                session.getConversation().addMessage(userMessage,session.getUserTimeMillis(),assistantMessage,session.getAssistantTimeMillis());
+                session.getConversation().addMessage(userMessage, session.getUserTimeMillis(), assistantMessage, session.getAssistantTimeMillis());
             });
             return assistantMessage.getText();
 
@@ -119,7 +120,7 @@ public class ChatService {
      * @param useFunctionCall 是否使用函数调用
      */
     public Flux<ChatResponse> chatStream(ChatSession session, String message,
-            boolean useFunctionCall) {
+                                         boolean useFunctionCall) {
         // 获取ChatModel
         ChatModel chatModel = chatModelFactory.takeChatModel(session);
 
@@ -132,12 +133,20 @@ public class ChatService {
         List<Message> messages = session.getConversation().prompt(userMessage);
         Prompt prompt = new Prompt(messages, chatOptions);
 
+        // ✅ 打印请求体（JSON格式）
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            String json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(prompt);
+            System.out.println("=== 请求体 ===\n" + json + "\n=================");
+        } catch (Exception e) {
+            logger.error("打印请求体失败:", e);
+        }
         // 调用实际的流式聊天方法
         return chatModel.stream(prompt);
     }
 
     public void chatStreamBySentence(ChatSession session, String message, boolean useFunctionCall,
-            TriConsumer<String, Boolean, Boolean> sentenceHandler) {
+                                     TriConsumer<String, Boolean, Boolean> sentenceHandler) {
         try {
             // 创建流式响应监听器
             StreamResponseListener streamListener = new TokenStreamResponseListener(session, message, sentenceHandler);
@@ -146,10 +155,10 @@ public class ChatService {
             chatStream(session, message, useFunctionCall)
                     .subscribe(
                             chatResponse -> {
-                                String token = chatResponse.getResult() == null
-                                        || chatResponse.getResult().getOutput() == null
-                                        || chatResponse.getResult().getOutput().getText() == null ? ""
-                                                : chatResponse.getResult().getOutput().getText();
+                                chatResponse.getResult();
+                                chatResponse.getResult();
+                                String token = chatResponse.getResult().getOutput().getText() == null ? ""
+                                        : chatResponse.getResult().getOutput().getText();
                                 if (!token.isEmpty()) {
                                     streamListener.onToken(token);
                                 }
@@ -157,12 +166,10 @@ public class ChatService {
                                     Generation generation = chatResponse.getResult();
                                     // 注意，不能用chatResponse.hasToolCalls()判断，当前chatResponse工具调用结果的返回，
                                     // 是个文本类助手消息，hasToolCalls标识是false。必须溯源取meta
-                                    if (generation != null) {
-                                        ChatGenerationMetadata chatGenerationMetadata = generation.getMetadata();
-                                        String name = chatGenerationMetadata.get("toolName");
-                                        if (name != null && !name.isEmpty()) {
-                                            toolName.append(name);
-                                        }
+                                    ChatGenerationMetadata chatGenerationMetadata = generation.getMetadata();
+                                    String name = chatGenerationMetadata.get("toolName");
+                                    if (name != null && !name.isEmpty()) {
+                                        toolName.append(name);
                                     }
                                 }
                             },
@@ -178,7 +185,7 @@ public class ChatService {
 
     /**
      * 清除设备缓存
-     * 
+     *
      * @param deviceId 设备ID
      */
     public void clearMessageCache(String deviceId) {
@@ -220,7 +227,7 @@ public class ChatService {
         TriConsumer<String, Boolean, Boolean> sentenceHandler;
 
         public TokenStreamResponseListener(ChatSession session, String message,
-                TriConsumer<String, Boolean, Boolean> sentenceHandler) {
+                                           TriConsumer<String, Boolean, Boolean> sentenceHandler) {
             this.message = message;
             this.session = session;
             this.sentenceHandler = sentenceHandler;
@@ -235,7 +242,7 @@ public class ChatService {
             fullResponse.append(token);
 
             // 逐字符处理token
-            for (int i = 0; i < token.length();) {
+            for (int i = 0; i < token.length(); ) {
                 int codePoint = token.codePointAt(i);
                 String charStr = new String(Character.toChars(codePoint));
 
@@ -313,7 +320,7 @@ public class ChatService {
         public void onComplete(String toolName) {
             // 检查该会话是否已完成处理
             // 处理当前缓冲区剩余的内容（如果有）
-            if (currentSentence.length() > 0 && containsSubstantialContent(currentSentence.toString())
+            if (!currentSentence.isEmpty() && containsSubstantialContent(currentSentence.toString())
                     && !finalSentenceSent.get()) {
                 String sentence = currentSentence.toString().trim();
                 boolean isFirst = sentenceCount.get() == 0;
@@ -358,5 +365,5 @@ public class ChatService {
             sentenceHandler.accept("抱歉，我在处理您的请求时遇到了问题。", true, true);
 
         }
-    };
+    }
 }

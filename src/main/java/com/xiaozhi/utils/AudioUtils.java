@@ -4,10 +4,11 @@ import org.bytedeco.ffmpeg.global.avutil;
 import org.bytedeco.javacv.FrameRecorder;
 import org.slf4j.Logger;
 
-import java.io.DataOutputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.UnsupportedAudioFileException;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -20,6 +21,7 @@ public class AudioUtils {
     private static final Logger logger = org.slf4j.LoggerFactory.getLogger(AudioUtils.class);
     public static final int FRAME_SIZE = 960;
     public static final int SAMPLE_RATE = 16000; // 采样率
+    public static final int OPUS_SAMPLE_RATE = 48000; // OPUS采样率
     public static final int CHANNELS = 1; // 单声道
     public static final int BITRATE = 16000; // 16kbps比特率
     public static final int SAMPLE_FORMAT = avutil.AV_SAMPLE_FMT_S16; // 16位PCM
@@ -237,7 +239,7 @@ public class AudioUtils {
      * @param wavPath WAV文件路径
      * @return PCM数据字节数组
      */
-    public static byte[] wavToPcm(String wavPath) throws IOException {
+    public static byte[] wavToPcm(String wavPath) throws IOException, UnsupportedAudioFileException {
         // 读取整个文件
         byte[] wavData = Files.readAllBytes(Paths.get(wavPath));
         return wavBytesToPcm(wavData);
@@ -249,38 +251,39 @@ public class AudioUtils {
      * @param wavData WAV文件的字节数据
      * @return PCM数据字节数组
      */
-    public static byte[] wavBytesToPcm(byte[] wavData) throws IOException {
-        if (wavData == null || wavData.length < 44) { // WAV头至少44字节
-            throw new IOException("无效的WAV数据");
-        }
+    public static byte[] wavBytesToPcm(byte[] wavData) throws IOException, UnsupportedAudioFileException {
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(wavData);
+             AudioInputStream ais = AudioSystem.getAudioInputStream(bais);
+             ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 
-        // 检查WAV文件标识
-        if (wavData[0] != 'R' || wavData[1] != 'I' || wavData[2] != 'F' || wavData[3] != 'F' ||
-                wavData[8] != 'W' || wavData[9] != 'A' || wavData[10] != 'V' || wavData[11] != 'E') {
-            throw new IOException("不是有效的WAV文件格式");
-        }
-
-        // 查找data子块
-        int dataOffset = -1;
-        for (int i = 12; i < wavData.length - 4; i++) {
-            if (wavData[i] == 'd' && wavData[i + 1] == 'a' && wavData[i + 2] == 't' && wavData[i + 3] == 'a') {
-                dataOffset = i + 8; // 跳过"data"和数据大小字段
-                break;
+            AudioFormat format = ais.getFormat();
+            if (format.getSampleSizeInBits() != 16 || format.isBigEndian() || format.getChannels() != 1) {
+                // 需要转换成 16bit, little-endian, mono
+                AudioFormat targetFormat = new AudioFormat(
+                        AudioFormat.Encoding.PCM_SIGNED,
+                        OPUS_SAMPLE_RATE,
+                        16,
+                        CHANNELS,
+                        CHANNELS * 2,
+                        OPUS_SAMPLE_RATE,
+                        false
+                );
+                try (AudioInputStream converted = AudioSystem.getAudioInputStream(targetFormat, ais)) {
+                    byte[] buffer = new byte[1024];
+                    int read;
+                    while ((read = converted.read(buffer)) != -1) {
+                        baos.write(buffer, 0, read);
+                    }
+                }
+            } else {
+                byte[] buffer = new byte[1024];
+                int read;
+                while ((read = ais.read(buffer)) != -1) {
+                    baos.write(buffer, 0, read);
+                }
             }
+            return baos.toByteArray();
         }
-
-        if (dataOffset == -1) {
-            throw new IOException("在WAV文件中找不到data子块");
-        }
-
-        // 计算PCM数据大小
-        int dataSize = wavData.length - dataOffset;
-
-        // 提取PCM数据
-        byte[] pcmData = new byte[dataSize];
-        System.arraycopy(wavData, dataOffset, pcmData, 0, dataSize);
-
-        return pcmData;
     }
 
     /**
@@ -289,7 +292,7 @@ public class AudioUtils {
      * @param filePath 音频文件路径
      * @return PCM数据字节数组
      */
-    public static byte[] readAsPcm(String filePath) throws IOException {
+    public static byte[] readAsPcm(String filePath) throws IOException, UnsupportedAudioFileException {
         if (filePath.toLowerCase().endsWith(".wav")) {
             return wavToPcm(filePath);
         } else if (filePath.toLowerCase().endsWith(".mp3")) {

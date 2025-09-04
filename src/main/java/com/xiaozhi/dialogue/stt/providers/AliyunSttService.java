@@ -80,7 +80,7 @@ public class AliyunSttService implements SttService {
                         );
             } catch (Exception e) {
                 sink.error(e);
-                logger.info("语音识别失败: {}", e);
+                logger.info("语音识别失败: ", e);
             }
         });
 

@@ -30,9 +30,11 @@ public class OpusProcessor {
     // 常量
     private static final int FRAME_SIZE = AudioUtils.FRAME_SIZE;
     private static final int SAMPLE_RATE = AudioUtils.SAMPLE_RATE;
+    private static final int OPUS_SAMPLE_RATE = AudioUtils.OPUS_SAMPLE_RATE;
     private static final int CHANNELS = AudioUtils.CHANNELS;
     public static final int OPUS_FRAME_DURATION_MS = AudioUtils.OPUS_FRAME_DURATION_MS;
     private static final int MAX_SIZE = 1275;
+    private static final int OPUS_FRAME_SIZE = OPUS_SAMPLE_RATE / 1000 * OPUS_FRAME_DURATION_MS; // 20ms采样数
 
     // 预热帧数量 - 添加几个静音帧来预热编解码器
     private static final int PRE_WARM_FRAMES = 2;
@@ -143,24 +145,24 @@ public class OpusProcessor {
         if (pcmChunks == null || pcmChunks.isEmpty()) {
             return new byte[0];
         }
-        
+
         // 计算总长度
         int totalLength = 0;
         for (byte[] chunk : pcmChunks) {
             totalLength += chunk.length;
         }
-        
+
         // 创建结果缓冲区
         byte[] result = new byte[totalLength];
         int offset = 0;
-        
+
         // 应用交叉淡入淡出的重叠区域长度（毫秒）
         int overlapMs = 10; // 10ms的重叠
         int overlapBytes = (SAMPLE_RATE * 2 * CHANNELS * overlapMs) / 1000; // 每毫秒的字节数
-        
+
         for (int i = 0; i < pcmChunks.size(); i++) {
             byte[] chunk = pcmChunks.get(i);
-            
+
             if (i == 0) {
                 // 第一个片段直接复制
                 System.arraycopy(chunk, 0, result, offset, chunk.length);
@@ -169,25 +171,25 @@ public class OpusProcessor {
                 // 后续片段需要与前一个片段进行平滑过渡
                 int overlapStart = Math.max(0, offset - overlapBytes);
                 int overlapLength = Math.min(overlapBytes, offset - overlapStart);
-                
+
                 if (overlapLength > 0 && chunk.length > 0) {
                     // 在重叠区域应用线性交叉淡变
                     for (int j = 0; j < overlapLength; j += 2) {
                         // 计算淡变权重
-                        float weight = (float)j / overlapLength;
-                        
+                        float weight = (float) j / overlapLength;
+
                         // 获取重叠区域的样本
-                        short sample1 = (short)((result[overlapStart + j] & 0xFF) | ((result[overlapStart + j + 1] & 0xFF) << 8));
-                        short sample2 = (short)((chunk[j] & 0xFF) | ((chunk[j + 1] & 0xFF) << 8));
-                        
+                        short sample1 = (short) ((result[overlapStart + j] & 0xFF) | ((result[overlapStart + j + 1] & 0xFF) << 8));
+                        short sample2 = (short) ((chunk[j] & 0xFF) | ((chunk[j + 1] & 0xFF) << 8));
+
                         // 线性混合
-                        short mixed = (short)((1 - weight) * sample1 + weight * sample2);
-                        
+                        short mixed = (short) ((1 - weight) * sample1 + weight * sample2);
+
                         // 写回结果
-                        result[overlapStart + j] = (byte)(mixed & 0xFF);
-                        result[overlapStart + j + 1] = (byte)((mixed >> 8) & 0xFF);
+                        result[overlapStart + j] = (byte) (mixed & 0xFF);
+                        result[overlapStart + j + 1] = (byte) ((mixed >> 8) & 0xFF);
                     }
-                    
+
                     // 复制剩余部分
                     System.arraycopy(chunk, overlapLength, result, offset, chunk.length - overlapLength);
                     offset += (chunk.length - overlapLength);
@@ -198,14 +200,14 @@ public class OpusProcessor {
                 }
             }
         }
-        
+
         // 如果实际长度小于预分配长度，则裁剪
         if (offset < totalLength) {
             byte[] trimmed = new byte[offset];
             System.arraycopy(result, 0, trimmed, 0, offset);
             return trimmed;
         }
-        
+
         return result;
     }
 
@@ -774,6 +776,59 @@ public class OpusProcessor {
         return frames;
     }
 
+    public static List<byte[]> pcmToOpus(byte[] pcmData, boolean isStream, boolean openAIAudio) throws OpusException {
+        List<byte[]> opusFrames = new ArrayList<>();
+
+        if (pcmData == null || pcmData.length == 0) return opusFrames;
+
+        // 转 short[]
+        ByteBuffer buf = ByteBuffer.wrap(pcmData).order(ByteOrder.LITTLE_ENDIAN);
+        ShortBuffer shorts = buf.asShortBuffer();
+        short[] pcmShorts = new short[shorts.remaining()];
+        shorts.get(pcmShorts);
+
+        // 初始化 OPUS 编码器
+        OpusEncoder encoder = new OpusEncoder(OPUS_SAMPLE_RATE, CHANNELS, OpusApplication.OPUS_APPLICATION_AUDIO);
+
+        int totalSamples = pcmShorts.length;
+        int frameCount = totalSamples / OPUS_FRAME_SIZE;
+        int remaining = totalSamples % OPUS_FRAME_SIZE;
+
+        short[] frameBuffer = new short[OPUS_FRAME_SIZE];
+        byte[] opusBuffer = new byte[4000];
+
+        // 可选淡入处理
+        boolean isFirstFrame = true;
+        for (int i = 0; i < frameCount; i++) {
+            System.arraycopy(pcmShorts, i * OPUS_FRAME_SIZE, frameBuffer, 0, OPUS_FRAME_SIZE);
+            if (isFirstFrame) {
+                int fadeSamples = Math.min(320, OPUS_FRAME_SIZE);
+                for (int j = 0; j < fadeSamples; j++) {
+                    float gain = (float) j / fadeSamples;
+                    frameBuffer[j] = (short) (frameBuffer[j] * gain);
+                }
+                isFirstFrame = false;
+            }
+            int len = encoder.encode(frameBuffer, 0, OPUS_FRAME_SIZE, opusBuffer, 0, opusBuffer.length);
+            if (len > 0) {
+                opusFrames.add(Arrays.copyOf(opusBuffer, len));
+            }
+        }
+
+        // 处理残余
+        if (remaining > 0) {
+            short[] lastFrame = new short[OPUS_FRAME_SIZE];
+            System.arraycopy(pcmShorts, frameCount * OPUS_FRAME_SIZE, lastFrame, 0, remaining);
+            int len = encoder.encode(lastFrame, 0, OPUS_FRAME_SIZE, opusBuffer, 0, opusBuffer.length);
+            if (len > 0) {
+                opusFrames.add(Arrays.copyOf(opusBuffer, len));
+            }
+        }
+
+        return opusFrames;
+    }
+
+
     /**
      * 添加预热帧 - 解决开头破音问题
      */
@@ -847,40 +902,40 @@ public class OpusProcessor {
     /**
      * 将PCM音频数据编码为Opus格式 - 用于实时音频传输
      */
-    public byte[] encodeToOpus(byte[] pcmData) throws OpusException {
+    public byte[] encodeToOpus(byte[] pcmData) {
         if (pcmData == null || pcmData.length == 0) {
             return new byte[0];
         }
 
         // 创建临时会话ID用于编码
         String tempSid = "realtime_" + Thread.currentThread().getId();
-        
+
         try {
             // 使用pcmToOpus方法进行编码，非流式模式
             List<byte[]> opusFrames = pcmToOpus(tempSid, pcmData, false);
-            
+
             if (opusFrames.isEmpty()) {
                 return new byte[0];
             }
-            
+
             // 如果只有一帧，直接返回
             if (opusFrames.size() == 1) {
                 return opusFrames.get(0);
             }
-            
+
             // 多帧合并
             int totalLength = 0;
             for (byte[] frame : opusFrames) {
                 totalLength += frame.length;
             }
-            
+
             byte[] result = new byte[totalLength];
             int offset = 0;
             for (byte[] frame : opusFrames) {
                 System.arraycopy(frame, 0, result, offset, frame.length);
                 offset += frame.length;
             }
-            
+
             return result;
         } finally {
             // 清理临时编码器

@@ -3,6 +3,8 @@ package com.xiaozhi.dialogue.service;
 import com.xiaozhi.communication.common.ChatSession;
 import com.xiaozhi.communication.common.SessionManager;
 import com.xiaozhi.dialogue.llm.ChatService;
+import com.xiaozhi.dialogue.llm.factory.ChatModelFactory;
+import com.xiaozhi.dialogue.llm.util.AudioTranscriptionUtils;
 import com.xiaozhi.dialogue.service.VadService.VadStatus;
 import com.xiaozhi.dialogue.stt.SttService;
 import com.xiaozhi.dialogue.stt.factory.SttServiceFactory;
@@ -25,6 +27,7 @@ import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.*;
@@ -76,9 +79,12 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
 
     @Resource
     private SysConfigService configService;
-    
+
     @Resource
     private SysRoleService roleService;
+
+    @Resource
+    private ChatModelFactory chatModelFactory;
 
     // 会话状态管理
     private final Map<String, AtomicInteger> seqCounters = new ConcurrentHashMap<>();
@@ -100,10 +106,10 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
     @Override
     public void onApplicationEvent(ChatSessionCloseEvent event) {
         ChatSession chatSession = event.getSession();
-        if(chatSession != null) {
+        if (chatSession != null) {
             // clean up dialogue audio paths and responses
             Long assistantTimeMillis = chatSession.getAssistantTimeMillis();
-            if (assistantTimeMillis!=null ) {
+            if (assistantTimeMillis != null) {
                 dialogueAudioPaths.remove(assistantTimeMillis);
                 dialogueResponses.remove(assistantTimeMillis);
             }
@@ -126,6 +132,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
         private double ttsGenerationTime = 0.0; // TTS生成时间（秒）
         private Long assistantTimeMillis = null; // 对话ID
         private List<String> moods;
+
         // TODO 看看是否真的需要这么多个构造方法。
         public Sentence(String text) {
             this.text = text;
@@ -226,8 +233,8 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
         private boolean isRetry = false;
 
         public TtsTask(ChatSession session, String sessionId, Sentence sentence,
-                EmoSentence emoSentence, boolean isFirst, boolean isLast,
-                SysConfig ttsConfig, String voiceName) {
+                       EmoSentence emoSentence, boolean isFirst, boolean isLast,
+                       SysConfig ttsConfig, String voiceName) {
             this.session = session;
             this.sessionId = sessionId;
             this.sentence = sentence;
@@ -276,59 +283,59 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
      * 处理音频数据
      */
     public void processAudioData(ChatSession session, byte[] opusData) {
-            try {
-                String sessionId = session.getSessionId();
-                SysDevice device = session.getSysDevice();
-                // 如果设备未注册或未绑定，忽略音频数据
-                if (device == null || ObjectUtils.isEmpty(device.getRoleId())) {
-                    return;
-                }
-                SysRole role = roleService.selectRoleById(device.getRoleId());
-                // 获取STT和TTS配置
-                SysConfig sttConfig = role.getSttId() != null ? configService.selectConfigById(role.getSttId())
-                        : null;
-
-                // 处理VAD
-                VadService.VadResult vadResult = vadService.processAudio(sessionId, opusData);
-                if (vadResult == null || vadResult.getStatus() == VadStatus.ERROR
-                        || vadResult.getProcessedData() == null) {
-                    return;
-                }
-
-                // 检测到语音活动，更新最后活动时间
-                sessionManager.updateLastActivity(sessionId);
-                // 根据VAD状态处理
-                switch (vadResult.getStatus()) {
-                    case SPEECH_START:
-                        // 检测到语音开始
-                        sttStartTimes.put(sessionId, System.currentTimeMillis());
-
-                        // 初始化对话状态
-                        initChat(sessionId);
-                        startStt(session, sessionId, sttConfig, device, vadResult.getProcessedData());
-                        break;
-
-                    case SPEECH_CONTINUE:
-                        // 语音继续，发送数据到流式识别
-                        if (sessionManager.isStreaming(sessionId)) {
-                            sessionManager.sendAudioData(sessionId, vadResult.getProcessedData());
-                        }
-                        break;
-
-                    case SPEECH_END:
-                        // 语音结束，完成流式识别
-                        if (sessionManager.isStreaming(sessionId)) {
-                            sessionManager.completeAudioStream(sessionId);
-                            sessionManager.setStreamingState(sessionId, false);
-                        }
-                        break;
-
-                    default:
-                        break;
-                }
-            } catch (Exception e) {
-                logger.error("处理音频数据失败: {}", e.getMessage(), e);
+        try {
+            String sessionId = session.getSessionId();
+            SysDevice device = session.getSysDevice();
+            // 如果设备未注册或未绑定，忽略音频数据
+            if (device == null || ObjectUtils.isEmpty(device.getRoleId())) {
+                return;
             }
+            SysRole role = roleService.selectRoleById(device.getRoleId());
+            // 获取STT和TTS配置
+            SysConfig sttConfig = role.getSttId() != null ? configService.selectConfigById(role.getSttId())
+                    : null;
+
+            // 处理VAD
+            VadService.VadResult vadResult = vadService.processAudio(sessionId, opusData);
+            if (vadResult == null || vadResult.getStatus() == VadStatus.ERROR
+                    || vadResult.getProcessedData() == null) {
+                return;
+            }
+
+            // 检测到语音活动，更新最后活动时间
+            sessionManager.updateLastActivity(sessionId);
+            // 根据VAD状态处理
+            switch (vadResult.getStatus()) {
+                case SPEECH_START:
+                    // 检测到语音开始
+                    sttStartTimes.put(sessionId, System.currentTimeMillis());
+
+                    // 初始化对话状态
+                    initChat(sessionId);
+                    startStt(session, sessionId, sttConfig, device, vadResult.getProcessedData());
+                    break;
+
+                case SPEECH_CONTINUE:
+                    // 语音继续，发送数据到流式识别
+                    if (sessionManager.isStreaming(sessionId)) {
+                        sessionManager.sendAudioData(sessionId, vadResult.getProcessedData());
+                    }
+                    break;
+
+                case SPEECH_END:
+                    // 语音结束，完成流式识别
+                    if (sessionManager.isStreaming(sessionId)) {
+                        sessionManager.completeAudioStream(sessionId);
+                        sessionManager.setStreamingState(sessionId, false);
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+        } catch (Exception e) {
+            logger.error("处理音频数据失败: {}", e.getMessage(), e);
+        }
     }
 
     /**
@@ -369,7 +376,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
                 }
 
                 // 设置用户收到音频的时间戳作为用户消息的创建时间戳，也用于约定保存音频文件的路径。一定要在STT前获得时间戳。
-                final Long userTimeMillis =  System.currentTimeMillis();
+                final Long userTimeMillis = System.currentTimeMillis();
                 session.setUserTimeMillis(userTimeMillis);
 
                 final String finalText;
@@ -388,7 +395,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
                         .thenRun(() -> audioService.sendStart(session))
                         .thenRun(() -> {
                             // 设置LLM生成消息的时间戳作为Assistant消息的创建时间戳，也用于约定保存音频文件的路径。一定要在LLM前设置时间戳。
-                            final Long assistantTimeMillis =  System.currentTimeMillis();
+                            final Long assistantTimeMillis = System.currentTimeMillis();
                             session.setAssistantTimeMillis(assistantTimeMillis);
                             // 初始化当前对话的音频路径映射和文本响应
                             dialogueAudioPaths.put(assistantTimeMillis, new ConcurrentHashMap<>());
@@ -434,7 +441,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
 
                 // 保存为WAV文件
                 Path path = session.getUserAudioPath();
-                AudioUtils.saveAsWav(path,fullPcmData);
+                AudioUtils.saveAsWav(path, fullPcmData);
 
                 logger.debug("用户音频已保存: {}", path.toString());
             }
@@ -470,7 +477,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
         seqCounters.putIfAbsent(sessionId, new AtomicInteger(0));
         // 获取句子序列号
         int seq = seqCounters.get(sessionId).incrementAndGet();
-        
+
         // 耗时操作需及时更新最后活动时间，避免误判为会话终止
         sessionManager.updateLastActivity(sessionId);
 
@@ -491,7 +498,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
 
         SysDevice device = session.getSysDevice();
         SysRole role = roleService.selectRoleById(device.getRoleId());
-        if (device == null || role == null) {
+        if (role == null) {
             return;
         }
 
@@ -508,12 +515,14 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
         Sentence sentence = new Sentence(seq, text, isFirst, isLast);
         sentence.setModelResponseTime(responseTime); // 记录模型响应时间
         sentence.setAssistantTimeMillis(assistantTimeMillis); // 设置对话ID
-        
+
         logger.info("处理LLM返回的句子: seq={}, text={}, isFirst={}, isLast={}, responseTime={}s", seq, text, isFirst, isLast, responseTime);
 
         // 添加到句子队列
         CopyOnWriteArrayList<Sentence> queue = sentenceQueue.get(sessionId);
-        if (queue == null) {return;}
+        if (queue == null) {
+            return;
+        }
         queue.add(sentence);
 
         // 如果句子为空且是结束状态，直接标记为准备好（不需要生成音频）
@@ -677,7 +686,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
 
         // 如果是首句，需要标记首句处理完成
         if (task.isFirst) {
-            if(firstSentDone.get(task.sessionId) != null) {
+            if (firstSentDone.get(task.sessionId) != null) {
                 firstSentDone.get(task.sessionId).set(true);
             } else {
                 logger.error("会话 {} 已经被删除，无法标记首句处理完成。", task.sessionId);
@@ -696,7 +705,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
      */
     private void handleTtsFailure(TtsTask task, String reason) {
         task.retryCount++;
-    
+
         // 耗时操作需及时更新最后活动时间，避免服务端误判为会话终止
         sessionManager.updateLastActivity(task.getSessionId());
         // 异常或失败，发送类似心跳包，避免设备端误判为会话终止
@@ -709,7 +718,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
                     task.sentence.getSeq(), task.retryCount, MAX_RETRY_COUNT, task.sentence.getText(), reason);
 
             // 延迟后重试
-            CompletableFuture.delayedExecutor(500 * task.retryCount, TimeUnit.MILLISECONDS)
+            CompletableFuture.delayedExecutor(500L * task.retryCount, TimeUnit.MILLISECONDS)
                     .execute(() -> submitTtsTask(task));
         } else {
             // 超过最大重试次数，标记为失败
@@ -722,7 +731,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
 
             // 如果是首句，需要标记首句处理完成
             if (task.isFirst) {
-                if(firstSentDone.get(task.sessionId) != null) {
+                if (firstSentDone.get(task.sessionId) != null) {
                     firstSentDone.get(task.sessionId).set(true);
                 } else {
                     logger.error("会话 {} 已经被删除，无法标记首句处理完成。", task.sessionId);
@@ -730,7 +739,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
             }
 
             // 尝试处理队列
-            if(firstSentDone.get(task.sessionId) != null ) {
+            if (firstSentDone.get(task.sessionId) != null) {
                 if (firstSentDone.get(task.sessionId).get()) {
                     processQueue(task.session, task.sessionId);
                 }
@@ -769,7 +778,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
             // 合并音频文件
             if (!audioFilesToMerge.isEmpty()) {
                 Path path = session.getAssistantAudioPath();
-                AudioUtils.mergeAudioFiles(path,audioFilesToMerge);
+                AudioUtils.mergeAudioFiles(path, audioFilesToMerge);
                 // 保存合并后的音频路径
                 logger.info("对话 {} 的音频已合并: {}", assistantTimeMillis, path);
             }
@@ -875,20 +884,17 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
 
             // 检查是否为Realtime模式，如果是则不应该在这里处理
             if (isRealtimeMode(session)) {
-                logger.warn("Realtime模式不应该调用DialogueService.handleWakeWord，应该使用RealtimeService处理");
                 return;
             }
 
             handleText(session, text, timeMillis -> {
                 // 使用句子切分处理流式响应
                 chatService.chatStreamBySentence(session, text, false,
-                        (sentence, isFirst, isLast) -> {
-                            handleSentence(
-                                    session,
-                                    sentence,
-                                    isFirst,
-                                    isLast);
-                        });
+                        (sentence, isFirst, isLast) -> handleSentence(
+                                session,
+                                sentence,
+                                isFirst,
+                                isLast));
             });
         } catch (Exception e) {
             logger.error("处理唤醒词失败: {}", e.getMessage(), e);
@@ -902,19 +908,19 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
         if (chatSession == null) {
             return false;
         }
-        
+
         String sessionId = chatSession.getSessionId();
         SysDevice device = sessionManager.getDeviceConfig(sessionId);
-        
+
         if (device == null || device.getRoleId() == null) {
             return false;
         }
-        
+
         SysRole role = roleService.selectRoleById(device.getRoleId());
         if (role == null || role.getModelId() == null) {
             return false;
         }
-        
+
         SysConfig config = configService.selectConfigById(role.getModelId());
         return config != null && "realtime".equals(config.getConfigType());
     }
@@ -922,7 +928,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
     /**
      * 处理文本消息交互
      * 如果指定了输出文本，则用指定的文本生成语音
-     * 
+     *
      * @param session
      * @param inputText    输入文本
      * @param textConsumer 具体处理输入文本，传入 dialogId
@@ -939,7 +945,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
                 }
                 sessionManager.updateLastActivity(sessionId);
                 // 设置用户消息的创建时间戳，要在消息入库前获得时间戳。 后续考虑:传递的消息不一定是String，也可以是封装的。
-                final Long userTimeMillis =  System.currentTimeMillis();
+                final Long userTimeMillis = System.currentTimeMillis();
                 session.setUserTimeMillis(userTimeMillis);
                 // 发送识别结果
                 messageService.sendSttMessage(session, inputText);
@@ -1005,6 +1011,72 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
                 audioService.sendStop(session);
             } catch (Exception e) {
                 logger.error("中止对话失败: {}", e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * 处理音频转录请求
+     * 使用OpenAI Whisper进行音频转录
+     * 
+     * @param session 会话信息
+     * @param audioData 音频数据
+     * @param language 语言代码（可选，默认为"zh"）
+     * @return 转录结果
+     */
+    public String processAudioTranscription(ChatSession session, byte[] audioData, String language) {
+        try {
+            String sessionId = session.getSessionId();
+            logger.info("处理音频转录请求 - SessionId: {}, 音频大小: {} bytes, 语言: {}", 
+                    sessionId, audioData.length, language);
+            
+            // 更新最后活动时间
+            sessionManager.updateLastActivity(sessionId);
+            
+            // 获取音频转录模型
+            org.springframework.ai.chat.model.ChatModel transcriptionModel = chatModelFactory.takeTranscriptionModel();
+            
+            // 使用AudioTranscriptionUtils进行安全转录
+            String transcriptionResult = AudioTranscriptionUtils.safeTranscribe(
+                    transcriptionModel, audioData, language != null ? language : "zh", null);
+            
+            logger.info("音频转录完成 - SessionId: {}, 结果: {}", sessionId, transcriptionResult);
+            return transcriptionResult;
+            
+        } catch (Exception e) {
+            logger.error("音频转录处理失败", e);
+            return "抱歉，音频转录失败: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 处理音频转录并继续对话
+     * 先进行音频转录，然后基于转录结果进行对话
+     * 
+     * @param session 会话信息
+     * @param audioData 音频数据
+     * @param language 语言代码（可选，默认为"zh"）
+     */
+    public void processAudioTranscriptionAndChat(ChatSession session, byte[] audioData, String language) {
+        Thread.startVirtualThread(() -> {
+            try {
+                String sessionId = session.getSessionId();
+                logger.info("处理音频转录并对话 - SessionId: {}, 音频大小: {} bytes", sessionId, audioData.length);
+                
+                // 1. 先进行音频转录
+                String transcriptionResult = processAudioTranscription(session, audioData, language);
+                
+                if (transcriptionResult == null || transcriptionResult.trim().isEmpty() || 
+                    transcriptionResult.startsWith("抱歉，音频转录失败")) {
+                    logger.warn("音频转录失败或结果为空，无法继续对话");
+                    return;
+                }
+                
+                // 2. 基于转录结果进行对话
+                handleText(session, transcriptionResult, null);
+                
+            } catch (Exception e) {
+                logger.error("音频转录并对话处理失败", e);
             }
         });
     }
