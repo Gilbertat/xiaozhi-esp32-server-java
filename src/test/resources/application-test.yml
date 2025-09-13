@@ -1,0 +1,35 @@
+# 测试环境配置
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+  cache:
+    type: simple
+
+# 日志配置
+logging:
+  level:
+    com.xiaozhi: DEBUG
+    org.springframework.ai: DEBUG
+    root: INFO
+
+# 测试用的模型配置
+test:
+  models:
+    ollama:
+      endpoint: http://localhost:11434
+      model: llama2
+    openai:
+      endpoint: https://api.openai.com
+      model: gpt-3.5-turbo
+      api-key: test-key
+    zhipu:
+      endpoint: https://open.bigmodel.cn/api/paas/v4/
+      model: glm-4
+      api-key: test-key

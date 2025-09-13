@@ -42,6 +42,9 @@ public class SessionManager {
     // 存储验证码生成状态
     private final ConcurrentHashMap<String, Boolean> captchaState = new ConcurrentHashMap<>();
 
+    // 存储设备昵称缓存
+    private final ConcurrentHashMap<String, String> deviceNicknameCache = new ConcurrentHashMap<>();
+
     // 定时任务执行器
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -486,6 +489,47 @@ public class SessionManager {
      */
     public void unmarkCaptchaGeneration(String deviceId) {
         captchaState.remove(deviceId);
+    }
+
+    public void cacheDeviceNickname(String deviceId, String nickname) {
+        deviceNicknameCache.put(deviceId, nickname);
+    }
+
+    /**
+     * 获取设备昵称
+     *
+     * @param deviceId 设备ID
+     * @return 设备昵称，如果不存在则返回null
+     */
+    public String getDeviceNickname(String deviceId) {
+        return deviceNicknameCache.get(deviceId);
+    }
+
+    /**
+     * 设置昵称收集状态
+     *
+     * @param sessionId 会话ID
+     * @param isCollecting 是否正在收集昵称
+     */
+    public void setNicknameCollectionState(String sessionId, boolean isCollecting) {
+        ChatSession chatSession = sessions.get(sessionId);
+        if (chatSession != null) {
+            chatSession.setNicknameCollectionState(isCollecting);
+        }
+    }
+
+    /**
+     * 获取昵称收集状态
+     *
+     * @param sessionId 会话ID
+     * @return 是否正在收集昵称
+     */
+    public boolean isNicknameCollectionState(String sessionId) {
+        ChatSession chatSession = sessions.get(sessionId);
+        if (chatSession != null) {
+            return chatSession.isNicknameCollectionState();
+        }
+        return false;
     }
 
 }

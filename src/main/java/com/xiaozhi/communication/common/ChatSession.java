@@ -81,6 +81,11 @@ public abstract class ChatSession {
     protected Instant lastActivityTime;
 
     /**
+     * 是否正在收集设备昵称
+     */
+    protected boolean nicknameCollectionState;
+
+    /**
      * 会话属性存储
      */
     protected final ConcurrentHashMap<String, Object> attributes = new ConcurrentHashMap<>();
@@ -197,5 +202,23 @@ public abstract class ChatSession {
      */
     public Conversation getConversation() {
         return conversation;
+    }
+
+    /**
+     * 设置昵称收集状态
+     * 
+     * @param nicknameCollectionState 是否正在收集昵称
+     */
+    public void setNicknameCollectionState(boolean nicknameCollectionState) {
+        this.nicknameCollectionState = nicknameCollectionState;
+    }
+
+    /**
+     * 获取昵称收集状态
+     * 
+     * @return 是否正在收集昵称
+     */
+    public boolean isNicknameCollectionState() {
+        return nicknameCollectionState;
     }
 }

@@ -1,5 +1,6 @@
 package com.xiaozhi.dialogue.llm.memory;
 
+import com.xiaozhi.communication.common.SessionManager;
 import com.xiaozhi.entity.SysDevice;
 import com.xiaozhi.entity.SysRole;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,10 +12,12 @@ import static com.xiaozhi.dialogue.llm.memory.MessageWindowConversation.DEFAULT_
 public class WindowConversationFactory implements ConversationFactory{
 
     private final ChatMemory chatMemory;
+    private final SessionManager sessionManager;
 
     @Autowired
-    public WindowConversationFactory(ChatMemory chatMemory) {
+    public WindowConversationFactory(ChatMemory chatMemory, SessionManager sessionManager) {
         this.chatMemory = chatMemory;
+        this.sessionManager = sessionManager;
     }
 
     @Override
@@ -24,6 +27,7 @@ public class WindowConversationFactory implements ConversationFactory{
                 .role(role)
                 .device(device)
                 .sessionId(sessionId)
+                .sessionManager(sessionManager)
                 .build();
         return conversation;
     }

@@ -111,8 +111,8 @@ public class OpenAITtsService implements TtsService {
 //                }
 //
 //                // 将音频数据转换为PCM并保存为WAV
-////                byte[] pcmData = AudioUtils.wavBytesToPcm(audioData);
-////                byte[] wavData = AudioUtils.pcmToWav(pcmData, AudioUtils.SAMPLE_RATE, AudioUtils.CHANNELS, 16);
+//                byte[] pcmData = AudioUtils.wavBytesToPcm(audioData);
+//                byte[] wavData = AudioUtils.pcmToWav(pcmData, AudioUtils.SAMPLE_RATE, AudioUtils.CHANNELS, 16);
 //
 //                // 保存文件
 //                try (FileOutputStream fos = new FileOutputStream(filePath)) {
@@ -132,10 +132,10 @@ public class OpenAITtsService implements TtsService {
     public String textToSpeech(String text) throws Exception {
         try {
             // 构建请求体
-            String processedText = naturalizeText(text);
+//            String processedText = naturalizeText(text);
             JSONObject requestBody = new JSONObject();
             requestBody.put("model", model);
-            requestBody.put("input", processedText);
+            requestBody.put("input", text);
             requestBody.put("voice", voice);
             requestBody.put("response_format", "wav");
 

@@ -1,5 +1,6 @@
 package com.xiaozhi.dialogue.llm.memory;
 
+import com.xiaozhi.communication.common.SessionManager;
 import com.xiaozhi.entity.SysDevice;
 import com.xiaozhi.entity.SysMessage;
 import com.xiaozhi.entity.SysRole;
@@ -20,10 +21,13 @@ public class MessageWindowConversation extends Conversation {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MessageWindowConversation.class);
 
 
-    public MessageWindowConversation(SysDevice device, SysRole role, String sessionId, int maxMessages, ChatMemory chatMemory){
+    private final SessionManager sessionManager;
+
+    public MessageWindowConversation(SysDevice device, SysRole role, String sessionId, int maxMessages, ChatMemory chatMemory, SessionManager sessionManager){
         super(device, role, sessionId);
         this.maxMessages = maxMessages;
         this.chatMemory = chatMemory;
+        this.sessionManager = sessionManager;
         logger.info("加载设备{}的普通消息(SysMessage.MESSAGE_TYPE_NORMAL)作为对话历史",device.getDeviceId());
         List<SysMessage> history = chatMemory.getMessages(device.getDeviceId(), SysMessage.MESSAGE_TYPE_NORMAL, maxMessages);
         super.messages.addAll(convert(history)) ;
@@ -35,6 +39,7 @@ public class MessageWindowConversation extends Conversation {
         private String sessionId;
         private int maxMessages;
         private ChatMemory chatMemory;
+        private SessionManager sessionManager;
 
         public Builder device(SysDevice device) {
             this.device = device;
@@ -55,13 +60,18 @@ public class MessageWindowConversation extends Conversation {
             return this;
         }
 
+        public Builder sessionManager(SessionManager sessionManager) {
+            this.sessionManager = sessionManager;
+            return this;
+        }
+
         public Builder maxMessages(int maxMessages) {
             this.maxMessages = maxMessages;
             return this;
         }
 
         public MessageWindowConversation build(){
-            return new MessageWindowConversation(device,role,sessionId,maxMessages,chatMemory);
+            return new MessageWindowConversation(device,role,sessionId,maxMessages,chatMemory,sessionManager);
         }
     }
 
@@ -124,7 +134,14 @@ public class MessageWindowConversation extends Conversation {
     @Override
     public List<Message> prompt(UserMessage userMessage) {
         String roleDesc = role().getRoleDesc();
-        SystemMessage systemMessage = new SystemMessage(StringUtils.hasText(roleDesc)?roleDesc:"");
+        
+        // 获取设备昵称并拼接提示词
+        String deviceNickname = sessionManager.getDeviceNickname(device().getDeviceId());
+        String enhancedPrompt = StringUtils.hasText(deviceNickname) ? 
+            "我的名字是" + deviceNickname + "。" + (StringUtils.hasText(roleDesc) ? roleDesc : "") : 
+            (StringUtils.hasText(roleDesc) ? roleDesc : "");
+            
+        SystemMessage systemMessage = new SystemMessage(enhancedPrompt);
 
         final var historyMessages = messages();
         while (historyMessages.size() > maxMessages) {

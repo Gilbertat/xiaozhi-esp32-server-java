@@ -24,11 +24,11 @@ public class TtsServiceFactory {
     // 语音生成文件保存地址
     private static final String OUTPUT_PATH = "audio/";
 
-    // 默认服务提供商名称
-    private static final String DEFAULT_PROVIDER = "edge";
+    // 默认服务提供商名称 -- openai
+    private static final String DEFAULT_PROVIDER = "openai";
 
-    // 默认 EDGE TTS 服务默认语音名称
-    private static final String DEFAULT_VOICE = "zh-CN-XiaoyiNeural";
+    // 默认 openai TTS 服务默认语音名称
+    private static final String DEFAULT_VOICE = "Nova";
 
     /**
      * 获取默认TTS服务
@@ -40,7 +40,7 @@ public class TtsServiceFactory {
 
     // 创建缓存键，包含provider、configId和voiceName，确保音色变化时创建新的服务实例
     private String createCacheKey(SysConfig config, String provider, String voiceName) {
-        Integer configId = -1;
+        int configId = -1;
         if (config != null && config.getConfigId() != null) {
             configId = config.getConfigId();
         }

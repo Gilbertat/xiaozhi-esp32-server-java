@@ -102,4 +102,10 @@ public class SysDevice extends SysRole {
     @Schema(description = "可用全局function的名称列表")
     private String functionNames;
 
+    /**
+     * 设备昵称
+     */
+    @Schema(description = "设备昵称")
+    private String deviceNickname;
+
 }

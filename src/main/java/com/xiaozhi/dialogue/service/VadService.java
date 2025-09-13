@@ -242,6 +242,7 @@ public class VadService {
         }
 
         public List<byte[]> getPcmData() {
+            logger.info("VadState getPcmData - 数据块数量: {}", pcmData.size());
             return new ArrayList<>(pcmData);
         }
 
@@ -571,7 +572,9 @@ public class VadService {
         Object lock = getLock(sessionId);
         synchronized (lock) {
             VadState state = states.get(sessionId);
-            return state != null ? state.getPcmData() : new ArrayList<>();
+            List<byte[]> pcmData = state != null ? state.getPcmData() : new ArrayList<>();
+            logger.info("获取PCM数据 - SessionId: {}, 数据块数量: {}", sessionId, pcmData.size());
+            return pcmData;
         }
     }
 

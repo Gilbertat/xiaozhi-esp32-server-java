@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 
+import java.io.Serial;
+
 /**
  * LLM\STT\TTS配置
  * 
@@ -16,6 +18,9 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode(callSuper = true)
 @Schema(description = "配置信息")
 public class SysConfig extends Base<SysConfig> {
+    @Serial
+    private static final long serialVersionUID = -4423019118665032172L;
+
     @Schema(description = "配置ID")
     private Integer configId;
 

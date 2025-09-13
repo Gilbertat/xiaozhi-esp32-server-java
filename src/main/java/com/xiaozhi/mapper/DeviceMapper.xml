@@ -3,7 +3,7 @@
 <mapper namespace="com.xiaozhi.dao.DeviceMapper">
 
     <sql id="deviceSql">
-        sys_device.deviceId, sys_device.deviceName, sys_device.ip, sys_device.wifiName,
+        sys_device.deviceId, sys_device.deviceName, sys_device.deviceNickname, sys_device.ip, sys_device.wifiName,
         sys_device.chipModelName, sys_device.type, sys_device.version, sys_device.state,
         sys_device.roleId, sys_device.userId, sys_device.lastLogin, sys_device.createTime
     </sql>
@@ -86,6 +86,7 @@
         <set>
             <if test="state != null and state != ''">state = #{state},</if>
             <if test="deviceName != null and deviceName != ''">deviceName = #{deviceName},</if>
+            <if test="deviceNickname != null and deviceNickname != ''">deviceNickname = #{deviceNickname},</if>
             <if test="wifiName != null and wifiName != ''">wifiName = #{wifiName},</if>
             <if test="chipModelName != null and chipModelName != ''">chipModelName = #{chipModelName},</if>
             <if test="type != null and type != ''">type = #{type},</if>
@@ -101,9 +102,10 @@
     </update>
 
     <insert id="add" useGeneratedKeys="true" keyProperty="deviceName" parameterType="com.xiaozhi.entity.SysDevice">
-        INSERT INTO sys_device (deviceId, deviceName, type, userId, roleId) VALUES (
+        INSERT INTO sys_device (deviceId, deviceName, deviceNickname, type, userId, roleId) VALUES (
             #{deviceId},
             #{deviceName},
+            #{deviceNickname},
             #{type},
             #{userId},
             #{roleId}

@@ -15,6 +15,7 @@ import com.xiaozhi.entity.SysRole;
 import com.xiaozhi.event.ChatSessionCloseEvent;
 import com.xiaozhi.service.SysConfigService;
 import com.xiaozhi.service.SysRoleService;
+import com.xiaozhi.service.SysDeviceService;
 import com.xiaozhi.utils.AudioUtils;
 import com.xiaozhi.utils.EmojiUtils;
 import com.xiaozhi.utils.EmojiUtils.EmoSentence;
@@ -85,6 +86,9 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
 
     @Resource
     private ChatModelFactory chatModelFactory;
+
+    @Resource
+    private SysDeviceService deviceService;
 
     // 会话状态管理
     private final Map<String, AtomicInteger> seqCounters = new ConcurrentHashMap<>();
@@ -285,9 +289,12 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
     public void processAudioData(ChatSession session, byte[] opusData) {
         try {
             String sessionId = session.getSessionId();
+//            logger.info("处理音频数据 - SessionId: {}, 音频大小: {} bytes", sessionId, opusData.length);
+            
             SysDevice device = session.getSysDevice();
             // 如果设备未注册或未绑定，忽略音频数据
             if (device == null || ObjectUtils.isEmpty(device.getRoleId())) {
+                logger.info("设备未注册或未绑定，忽略音频数据 - SessionId: {}", sessionId);
                 return;
             }
             SysRole role = roleService.selectRoleById(device.getRoleId());
@@ -299,6 +306,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
             VadService.VadResult vadResult = vadService.processAudio(sessionId, opusData);
             if (vadResult == null || vadResult.getStatus() == VadStatus.ERROR
                     || vadResult.getProcessedData() == null) {
+//                logger.info("VAD处理结果为空或出错 - SessionId: {}", sessionId);
                 return;
             }
 
@@ -328,6 +336,35 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
                         sessionManager.completeAudioStream(sessionId);
                         sessionManager.setStreamingState(sessionId, false);
                     }
+                    
+                    // 检查是否处于昵称收集状态
+//                    boolean isNicknameCollection = sessionManager.isNicknameCollectionState(sessionId);
+//                    logger.info("检查昵称收集状态 - SessionId: {}, 是否处于昵称收集状态: {}", sessionId, isNicknameCollection);
+//                    if (isNicknameCollection) {
+//                        logger.info("处理昵称收集音频 - SessionId: {}", sessionId);
+//                        // 获取完整的PCM数据
+//                        List<byte[]> pcmDataList = vadService.getPcmData(sessionId);
+//                        logger.info("获取到的PCM数据块数量: {}", pcmDataList.size());
+//                        if (!pcmDataList.isEmpty()) {
+//                            // 合并所有PCM数据
+//                            int totalSize = pcmDataList.stream().mapToInt(data -> data.length).sum();
+//                            byte[] fullPcmData = new byte[totalSize];
+//                            int offset = 0;
+//                            for (byte[] chunk : pcmDataList) {
+//                                System.arraycopy(chunk, 0, fullPcmData, offset, chunk.length);
+//                                offset += chunk.length;
+//                            }
+//
+//                            // 处理昵称音频
+//                            handleNicknameAudio(sessionId, fullPcmData);
+//
+//                            // 重置昵称收集状态
+//                            sessionManager.setNicknameCollectionState(sessionId, false);
+//                            vadService.resetSession(sessionId);
+//                        } else {
+//                            logger.warn("昵称收集状态但没有PCM数据 - SessionId: {}", sessionId);
+//                        }
+//                    }
                     break;
 
                 default:
@@ -1079,6 +1116,52 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
                 logger.error("音频转录并对话处理失败", e);
             }
         });
+    }
+
+    /**
+     * 处理昵称收集的音频数据
+     */
+    private void handleNicknameAudio(String sessionId, byte[] audioData) {
+        logger.info("开始处理昵称音频 - SessionId: {}, 音频大小: {} bytes", sessionId, audioData.length);
+        
+        // 这里实现接收用户语音回复并转换为文字的逻辑
+        // 需要结合STT服务进行语音识别
+        ChatSession chatSession = sessionManager.getSession(sessionId);
+        if (chatSession == null || !chatSession.isOpen()) {
+            logger.warn("会话不存在或已关闭 - SessionId: {}", sessionId);
+            return;
+        }
+
+        SysDevice device = sessionManager.getDeviceConfig(sessionId);
+        if (device == null) {
+            logger.warn("设备配置不存在 - SessionId: {}", sessionId);
+            return;
+        }
+
+        // 使用STT服务转换语音为文字
+        try {
+            logger.info("调用STT服务进行语音识别 - SessionId: {}", sessionId);
+            String transcription = sttFactory.getDefaultSttService().recognition(audioData);
+            logger.info("STT识别结果: {}", transcription);
+            
+            if (StringUtils.hasText(transcription)) {
+                // 保存昵称
+                device.setDeviceNickname(transcription.trim());
+                deviceService.update(device);
+                
+                // 缓存昵称
+                sessionManager.cacheDeviceNickname(device.getDeviceId(), transcription.trim());
+                
+                // 发送确认消息
+                String confirmMessage = "好的，我以后就叫" + transcription.trim() + "了!";
+                String confirmAudioPath = ttsFactory.getDefaultTtsService().textToSpeech(confirmMessage);
+                audioService.sendAudioMessage(chatSession, new Sentence(confirmMessage, confirmAudioPath), true, true);
+            } else {
+                logger.warn("STT识别结果为空 - SessionId: {}", sessionId);
+            }
+        } catch (Exception e) {
+            logger.error("处理昵称音频失败", e);
+        }
     }
 
     /**

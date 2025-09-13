@@ -22,6 +22,7 @@ import com.xiaozhi.service.SysConfigService;
 import com.xiaozhi.service.SysDeviceService;
 import com.xiaozhi.service.SysRoleService;
 import jakarta.annotation.Resource;
+import org.bytedeco.librealsense.device;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -89,6 +90,9 @@ public class MessageHandler {
     // 用于存储设备ID和验证码生成状态的映射
     private final Map<String, Boolean> captchaGenerationInProgress = new ConcurrentHashMap<>();
 
+    // 用于存储设备ID和昵称收集状态的映射
+    private final Map<String, Boolean> nicknameCollectionInProgress = new ConcurrentHashMap<>();
+
     // 使用虚拟线程池处理定时任务
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(
             Runtime.getRuntime().availableProcessors(),
@@ -148,6 +152,19 @@ public class MessageHandler {
                             .setDeviceId(device.getDeviceId())
                             .setState(SysDevice.DEVICE_STATE_ONLINE)
                             .setLastLogin(new Date().toString()));
+
+                    // 检查是否需要收集设备昵称
+//                    String deviceNickname = device.getDeviceNickname();
+//                    logger.info("检查设备昵称 - DeviceId: {}, 昵称: {}", deviceId, deviceNickname);
+//                    if (StringUtils.hasText(deviceNickname)) {
+//                        logger.info("设备已有昵称，缓存到SessionManager - DeviceId: {}, 昵称: {}", deviceId, deviceNickname);
+//                        // 已有昵称，缓存到SessionManager
+//                        sessionManager.cacheDeviceNickname(deviceId, deviceNickname);
+//                    } else {
+//                        logger.info("设备没有昵称，启动昵称收集流程 - DeviceId: {}", deviceId);
+//                        // 没有昵称，启动昵称收集流程
+//                        startNicknameCollection(chatSession, device);
+//                    }
 
                 } catch (Exception e) {
                     logger.error("设备初始化失败 - DeviceId: {}", deviceId, e);
@@ -224,7 +241,10 @@ public class MessageHandler {
             realtimeService.sendAudioData(sessionId, opusData);
         } else {
             // 使用传统的STT+LLM+TTS模式
-            dialogueService.processAudioData(chatSession, opusData);
+             dialogueService.processAudioData(chatSession, opusData);
+            
+            // 跳过VAD，直接使用音频转录
+//            dialogueService.processAudioTranscriptionAndChat(chatSession, opusData, "ko");
         }
     }
 
@@ -518,5 +538,54 @@ public class MessageHandler {
         // 检查配置类型是否为realtime，或者模型名称包含realtime
         return "realtime".equals(config.getConfigType()) ||
                            (config.getModelName() != null && config.getModelName().toLowerCase().contains("realtime"));
+    }
+
+    /**
+     * 启动昵称收集流程
+     */
+    private void startNicknameCollection(ChatSession chatSession, SysDevice device) {
+        String deviceId = device.getDeviceId();
+        String sessionId = chatSession.getSessionId();
+        logger.info("启动昵称收集流程 - DeviceId: {}, SessionId: {}", deviceId, sessionId);
+        
+        // 检查是否已经在处理中，使用CAS操作保证线程安全
+        Boolean previous = nicknameCollectionInProgress.putIfAbsent(deviceId, true);
+        if (previous != null && previous) {
+            logger.info("昵称收集已在处理中，跳过 - DeviceId: {}", deviceId);
+            return; // 已经在处理中
+        }
+
+        Thread.startVirtualThread(() -> {
+            try {
+                logger.info("开始昵称收集虚拟线程 - DeviceId: {}, SessionId: {}", deviceId, sessionId);
+                
+                // 发送提示语音"请为我起一个名字吧!"
+                String promptMessage = "请为我起一个名字吧!";
+                String audioFilePath = ttsService.getDefaultTtsService().textToSpeech(promptMessage);
+                
+                audioService.sendAudioMessage(chatSession, new DialogueService.Sentence(promptMessage, audioFilePath), true, true);
+
+                // 初始化VAD会话以接收用户语音输入
+                vadService.initSession(sessionId);
+                
+                // 设置会话状态，表示正在等待昵称输入
+                sessionManager.setNicknameCollectionState(sessionId, true);
+                logger.info("设置昵称收集状态为true - SessionId: {}", sessionId);
+                
+                // 等待用户回复（实际通过VAD检测语音活动）
+                logger.info("等待用户语音输入昵称 - SessionId: {}", sessionId);
+                
+                // 注意：实际的昵称处理在handleNicknameAudio方法中完成
+                // 当VAD检测到语音结束时，会调用handleNicknameAudio方法处理音频数据
+
+            } catch (Exception e) {
+                logger.error("昵称收集流程失败 - DeviceId: {}", deviceId, e);
+                // 清理会话状态
+                sessionManager.setNicknameCollectionState(sessionId, false);
+                vadService.resetSession(sessionId);
+            } finally {
+                nicknameCollectionInProgress.remove(deviceId);
+            }
+        });
     }
 }

@@ -23,7 +23,7 @@ public class SttServiceFactory {
     private final Map<String, SttService> serviceCache = new ConcurrentHashMap<>();
 
     // 默认服务提供商名称
-    private static final String DEFAULT_PROVIDER = "vosk";
+    private static final String DEFAULT_PROVIDER = "openai";
 
     // 标记Vosk是否初始化成功
     private boolean voskInitialized = false;
@@ -58,7 +58,7 @@ public class SttServiceFactory {
             voskService.initialize();
             
             // 检查模型是否真正加载成功
-            if (voskService instanceof VoskSttService && !((VoskSttService)voskService).isModelLoaded()) {
+            if (!voskService.isModelLoaded()) {
                 throw new Exception("Vosk model was not properly loaded");
             }
             
