@@ -19,6 +19,7 @@ import com.xiaozhi.service.SysDeviceService;
 import com.xiaozhi.utils.AudioUtils;
 import com.xiaozhi.utils.EmojiUtils;
 import com.xiaozhi.utils.EmojiUtils.EmoSentence;
+import com.xiaozhi.utils.KoreanNumberConverter;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -521,6 +522,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
         // 累加完整回复内容
         if (text != null && !text.isEmpty()) {
             // 同时累加到对话ID对应的响应中
+            text = KoreanNumberConverter.convertNumberToKO(text);
             dialogueResponses.computeIfAbsent(assistantTimeMillis, k -> new StringBuilder()).append(text);
         }
 

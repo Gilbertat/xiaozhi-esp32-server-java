@@ -3,7 +3,9 @@ package com.xiaozhi.dialogue.stt.providers;
 import com.xiaozhi.dialogue.stt.SttService;
 import com.xiaozhi.entity.SysConfig;
 import com.xiaozhi.utils.AudioUtils;
+import com.xiaozhi.utils.KoreanNumberConverter;
 import okhttp3.*;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +17,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.MatchResult;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * OpenAI Whisper STT服务实现
@@ -117,7 +122,7 @@ public class OpenAISttService implements SttService {
 
                 JSONObject jsonResponse = new JSONObject(responseBody);
                 String text = jsonResponse.optString("text", "");
-
+                text = KoreanNumberConverter.convertNumberToKO(text);
                 logger.info("OpenAI 语音识别结果: {}", text);
                 return text;
             }
@@ -155,7 +160,8 @@ public class OpenAISttService implements SttService {
                                 offset += arr.length;
                             }
                             // 调用识别
-                            return recognition(combined);
+                            String partialText = recognition(combined);
+                            return KoreanNumberConverter.convertNumberToKO(partialText);
                         } catch (Exception e) {
                             logger.error("处理音频块失败", e);
                             return "";
