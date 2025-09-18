@@ -13,6 +13,8 @@ import NProgress from "nprogress";
 // import VueCropper from 'vue-cropper'
 // import VCharts from 'v-charts'
 import "static/css/main.css";
+import i18n from './i18n';
+
 Moment.locale("zh_CN");
 
 Vue.use(NProgress);
@@ -31,5 +33,6 @@ Vue.prototype.moment = Moment;
 new Vue({
   router,
   store,
+  i18n,
   render: h => h(App)
 }).$mount("#app");

@@ -16,8 +16,8 @@
               <div class="system-logo">
                 <a-icon type="api" class="logo-icon" />
               </div>
-              <a-typography-title level={1} class="system-title">小智 ESP32</a-typography-title>
-              <a-typography-paragraph class="system-subtitle">智能物联网管理平台</a-typography-paragraph>
+              <a-typography-title level={1} class="system-title">{{ $t('systemTitle') }}</a-typography-title>
+              <a-typography-paragraph class="system-subtitle">{{ $t('systemSubtitle') }}</a-typography-paragraph>
             </a-col>
             
             <!-- 登录表单区 -->
@@ -31,14 +31,14 @@
                 @submit="handleSubmit"
               >
                 <div class="form-header">
-                  <a-typography-paragraph class="form-subtitle">欢迎回来，请登录您的账户</a-typography-paragraph>
+                  <a-typography-paragraph class="form-subtitle">{{ $t('welcome') }}</a-typography-paragraph>
                 </div>
                 
                 <a-form-model-item prop="username">
                   <a-input
                     v-model="loginForm.username"
                     size="large"
-                    placeholder="用户名"
+                    :placeholder="$t('username')"
                     class="custom-input"
                   >
                     <a-icon slot="prefix" type="user" />
@@ -50,7 +50,7 @@
                     v-model="loginForm.password"
                     size="large"
                     type="password"
-                    placeholder="密码"
+                    :placeholder="$t('password')"
                     class="custom-input"
                   >
                     <a-icon slot="prefix" type="lock" />
@@ -60,12 +60,12 @@
                 <a-row type="flex" justify="space-between" align="middle" class="form-options">
                   <a-col>
                     <a-checkbox v-model="loginForm.rememberMe" class="remember-me">
-                      记住我
+                      {{ $t('rememberMe') }}
                     </a-checkbox>
                   </a-col>
                   <a-col>
                     <router-link to="forget" class="forgot-password">
-                      忘记密码?
+                      {{ $t('forgotPassword') }}
                     </router-link>
                   </a-col>
                 </a-row>
@@ -78,15 +78,15 @@
                   block
                   size="large"
                 >
-                  <span>登录</span>
+                  <span>{{ $t('login') }}</span>
                   <a-icon type="arrow-right" />
                 </a-button>
                 
                 <!-- 添加注册按钮 -->
                 <div class="register-container">
-                  <span class="register-text">还没有账户?</span>
+                  <span class="register-text">{{ $t('noAccount') }}</span>
                   <router-link to="register" class="register-link">
-                    立即注册
+                    {{ $t('registerNow') }}
                   </router-link>
                 </div>
               </a-form-model>
@@ -94,7 +94,7 @@
               <a-divider style="margin-top: 25px; margin-bottom: 15px;" />
               
               <a-typography-paragraph class="login-footer">
-                © {{ new Date().getFullYear() }} 小智ESP32物联网平台
+                {{ $t('copyright', { year: new Date().getFullYear() }) }}
               </a-typography-paragraph>
             </a-col>
           </a-row>
@@ -109,19 +109,19 @@
           <a-col :xs="7" :sm="7" :md="7">
             <div class="tech-card">
               <a-icon type="dashboard" />
-              <span>实时监控</span>
+              <span>{{ $t('realtimeMonitoring') }}</span>
             </div>
           </a-col>
           <a-col :xs="7" :sm="7" :md="7">
             <div class="tech-card">
               <a-icon type="setting" />
-              <span>系统配置</span>
+              <span>{{ $t('systemConfig') }}</span>
             </div>
           </a-col>
           <a-col :xs="7" :sm="7" :md="7">
             <div class="tech-card">
               <a-icon type="cloud-server" />
-              <span>云端管理</span>
+              <span>{{ $t('cloudManagement') }}</span>
             </div>
           </a-col>
         </a-row>
@@ -153,8 +153,8 @@ export default {
         rememberMe: false
       },
       loginRules: {
-        username: [{ required: true, message: '请输入用户名！', trigger: 'blur' }],
-        password: [{ required: true, message: '请输入密码！', trigger: 'blur' }]
+        username: [{ required: true, message: this.$t('usernameRequired'), trigger: 'blur' }],
+        password: [{ required: true, message: this.$t('passwordRequired'), trigger: 'blur' }]
       },
       loading: false,
       icons: [
@@ -207,10 +207,10 @@ export default {
               } else {
                 this.$message.error(res.message)
               }
-            }).catch(() => {
-              this.loading = false
-              this.showError();
-            })
+                          }).catch(() => {
+                this.loading = false;
+                this.$message.error(this.$t('loginFailed'));
+              })
         }
       })
     }

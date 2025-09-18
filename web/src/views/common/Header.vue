@@ -16,20 +16,20 @@
           <a-menu-item>
             <span class="header-index-dropdown">
               <a-icon type="user" />
-              <a @click="$router.push('/setting/account')">个人中心</a>
+              <a @click="$router.push('/setting/account')">{{ $t('personalCenter') }}</a>
             </span>
           </a-menu-item>
           <a-menu-item>
             <span class="header-index-dropdown">
               <a-icon type="setting" />
-              <a @click="$router.push('/setting/config')">个人设置</a>
+              <a @click="$router.push('/setting/config')">{{ $t('personalSettings') }}</a>
             </span>
           </a-menu-item>
           <a-menu-divider />
           <a-menu-item>
             <span class="header-index-logout header-index-dropdown">
               <a-icon type="logout" />
-              <a href="javascript:;" @click="logout">退出登录</a>
+              <a href="javascript:;" @click="logout">{{ $t('logout') }}</a>
             </span>
           </a-menu-item>
         </a-menu>

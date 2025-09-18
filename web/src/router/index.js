@@ -13,13 +13,13 @@ export default new Router({
     {
       path: "/",
       component: resolve => require(["@/views/common/Home"], resolve),
-      meta: { title: "首页" },
+      meta: { title: "首页", titleKey: "dashboard" },
       children: [
         {
           path: "/dashboard",
           component: resolve => require(["@/views/page/Dashboard"], resolve),
           name: "Dashboard",
-          meta: { title: "Dashboard", icon: "dashboard" }
+          meta: { title: "Dashboard", titleKey: "dashboard", icon: "dashboard" }
         },
         {
           path: "/user",
@@ -27,6 +27,7 @@ export default new Router({
           name: "User",
           meta: {
             title: "用户管理",
+            titleKey: "userManager",
             icon: "team",
             breadcrumb: [{ breadcrumbName: "用户管理" }],
             isAdmin: 1
@@ -38,6 +39,7 @@ export default new Router({
           name: "Device",
           meta: {
             title: "设备管理",
+            titleKey: "deviceManager",
             icon: "robot",
             breadcrumb: [{ breadcrumbName: "设备管理" }]
           }
@@ -46,13 +48,13 @@ export default new Router({
           path: "/message",
           component: resolve => require(["@/views/page/Message"], resolve),
           name: "message",
-          meta: { title: "对话管理", icon: "message" }
+          meta: { title: "对话管理", titleKey: "messageManager", icon: "message" }
         },
         {
           path: "/role",
           component: resolve => require(["@/views/page/Role"], resolve),
           name: "role",
-          meta: { title: "角色配置", icon: "user-add" }
+          meta: { title: "角色配置", titleKey: "roleConfig", icon: "user-add" }
         },
         {
           path: '/prompt-template',
@@ -60,6 +62,7 @@ export default new Router({
           component: resolve => require(['@/views/page/PromptTemplate'], resolve),
           meta: {
             title: '提示词模板管理',
+            titleKey: 'promptTemplate',
             icon: 'snippets',
             isAdmin: true,
             parent: '角色管理',
@@ -71,12 +74,12 @@ export default new Router({
           component: resolve => require(["@/views/common/PageView"], resolve),
           name: "Config",
           redirect: "/config/model",
-          meta: { title: "配置管理", icon: "setting", isAdmin: 1 },
+          meta: { title: "配置管理", titleKey: "configManager", icon: "setting", isAdmin: 1 },
           children: [
             {
               path: "/config/model",
               component: resolve => require(["@/views/page/config/ModelConfig"], resolve),
-              meta: { title: "模型配置", parent: "配置管理", isAdmin: 1 },
+              meta: { title: "模型配置", titleKey: "modelConfig", parent: "配置管理", isAdmin: 1 },
             },
             {
               path: "/config/agent",
@@ -84,6 +87,7 @@ export default new Router({
               name: "Agent",
               meta: {
                 title: "智能体管理",
+                titleKey: "agentManager",
                 parent: "配置管理",
                 isAdmin: 1
               },
@@ -91,17 +95,17 @@ export default new Router({
             {
               path: "/config/stt",
               component: resolve => require(["@/views/page/config/SttConfig"], resolve),
-              meta: { title: "语音识别配置", parent: "配置管理", isAdmin: 1 },
+              meta: { title: "语音识别配置", titleKey: "sttConfig", parent: "配置管理", isAdmin: 1 },
             },
             {
               path: "/config/tts",
               component: resolve => require(["@/views/page/config/TtsConfig"], resolve),
-              meta: { title: "语音合成配置", parent: "配置管理", isAdmin: 1 },
+              meta: { title: "语音合成配置", titleKey: "ttsConfig", parent: "配置管理", isAdmin: 1 },
             },
             {
               path: "/config/realtime",
               component: resolve => require(["@/views/page/config/RealtimeConfig"], resolve),
-              meta: { title: "实时对话配置", parent: "配置管理", isAdmin: 1 },
+              meta: { title: "实时对话配置", titleKey: "realtimeConfig", parent: "配置管理", isAdmin: 1 },
             },
           ]
         },
@@ -110,19 +114,19 @@ export default new Router({
           component: resolve => require(["@/views/common/PageView"], resolve),
           name: "Setting",
           redirect: "/setting/account",
-          meta: { title: "设置", icon: "setting" },
+          meta: { title: "设置", titleKey: "settings", icon: "setting" },
           children: [
             {
               path: "/setting/account",
               component: resolve =>
                 require(["@/views/page/setting/Account"], resolve),
-              meta: { title: "个人中心", parent: "设置" }
+              meta: { title: "个人中心", titleKey: "accountCenter", parent: "设置" }
             },
             {
               path: "/setting/config",
               component: resolve =>
                 require(["@/views/page/setting/Config"], resolve),
-              meta: { title: "个人设置", parent: "设置" }
+              meta: { title: "个人设置", titleKey: "accountSettings", parent: "设置" }
             }
           ]
         },
@@ -132,6 +136,7 @@ export default new Router({
           name: "Chat",
           meta: {
             title: "聊天",
+            titleKey: "chat",
             icon: "message",
             breadcrumb: [{ breadcrumbName: "聊天" }]
           }

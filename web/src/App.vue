@@ -1,5 +1,5 @@
 <template>
-  <a-config-provider :locale="locale.zh_CN">
+  <a-config-provider :locale="antdLocales[$i18n.locale]">
     <div id="app">
       <router-view></router-view>
     </div>
@@ -7,10 +7,18 @@
 </template>
 
 <script>
+import zhCN from 'ant-design-vue/lib/locale-provider/zh_CN';
+import enUS from 'ant-design-vue/lib/locale-provider/en_US';
+import koKR from 'ant-design-vue/lib/locale-provider/ko_KR';
+
 export default {
   data () {
     return {
-      locale: window.antd.locales
+      antdLocales: {
+        'zh': zhCN,
+        'en': enUS,
+        'ko': koKR
+      }
     }
   }
 }

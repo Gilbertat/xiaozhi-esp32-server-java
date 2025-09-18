@@ -16,7 +16,7 @@
         <a-menu-item v-if="!item.children" :key="item.path">
           <router-link :to="{ path: item.path }">
             <a-icon :type="item.meta.icon"></a-icon>
-            <span>{{ item.meta.title }}</span>
+            <span>{{ $t(item.meta.titleKey || item.meta.title) }}</span>
           </router-link>
         </a-menu-item>
         <sub-menu v-else :key="item.path" :menu-info="item" />
@@ -36,12 +36,12 @@ const SubMenu = {
       <a-sub-menu :key="menuInfo.path" v-bind="$props" v-on="$listeners">
         <span slot="title">
           <a-icon :type="menuInfo.meta.icon" />
-          <span>{{ menuInfo.meta.title }}</span>
+          <span>{{ $t(menuInfo.meta.titleKey || menuInfo.meta.title) }}</span>
         </span>
         <template v-for="item in filterAdminRoutes(menuInfo.children)">
           <a-menu-item v-if="!item.children" :key="item.path">
             <router-link :to="{path: item.path}">
-              <span>{{ item.meta.title }}</span>
+              <span>{{ $t(item.meta.titleKey || item.meta.title) }}</span>
             </router-link>
           </a-menu-item>
           <sub-menu v-else :key="item.path" :menu-info="item" />
@@ -99,6 +99,8 @@ export default {
     },
     filteredSidebar() {
       return this.sidebar.filter(route => {
+        // 切换页面时摧毁所有弹框
+        this.$message.destroy()
         // 判断管理员页面
         // 判断是否为不显示的子页面
         return (!route.meta.isAdmin || (route.meta.isAdmin && this.isAdmin)) && !route.meta.hideInMenu;
