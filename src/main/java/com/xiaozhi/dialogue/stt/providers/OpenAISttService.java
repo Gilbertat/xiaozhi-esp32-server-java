@@ -10,8 +10,10 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Sinks;
+import reactor.core.scheduler.Schedulers;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -41,8 +43,9 @@ public class OpenAISttService implements SttService {
 
         this.httpClient = new OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(60, TimeUnit.SECONDS)
-                .writeTimeout(60, TimeUnit.SECONDS)
+                .readTimeout(90, TimeUnit.SECONDS)  // 增加读取超时时间
+                .writeTimeout(90, TimeUnit.SECONDS) // 增加写入超时时间
+                .callTimeout(120, TimeUnit.SECONDS) // 添加总调用超时时间
                 .build();
     }
 
@@ -80,7 +83,7 @@ public class OpenAISttService implements SttService {
                     .addFormDataPart("file", tempFile.getName(),
                             RequestBody.create(MediaType.parse("audio/wav"), tempFile))
                     .addFormDataPart("model", model)
-                    .addFormDataPart("language", "ko")
+//                    .addFormDataPart("language", "ko")
                     .addFormDataPart("response_format", "json")
                     .build();
 
@@ -95,24 +98,16 @@ public class OpenAISttService implements SttService {
 
             // 发送请求
             try (Response response = httpClient.newCall(request).execute()) {
-                if (response == null) {
-                    logger.error("recognition: httpClient 执行返回 null response");
-                    return "";
-                }
 
                 logger.debug("recognition: response.code = {}", response.code());
 
                 if (!response.isSuccessful()) {
-                    logger.error("OpenAI STT API 请求失败: code={}, message={}",
-                            response.code(), response.message());
+                    logger.error("OpenAI STT API 请求失败: code={}, message={}, body={}",
+                            response.code(), response.message(), response.body().string());
                     return "";
                 }
 
                 ResponseBody body = response.body();
-                if (body == null) {
-                    logger.error("OpenAI STT API 返回空响应体 (response.body == null)");
-                    return "";
-                }
 
                 String responseBody = body.string();
                 if (responseBody.isEmpty()) {
@@ -144,42 +139,129 @@ public class OpenAISttService implements SttService {
 
         StringBuilder finalResult = new StringBuilder();
 
-        try {
-            // 持续收集音频数据，每1秒合并一次识别
-            audioSink.asFlux()
-                    .bufferTimeout(50, Duration.ofSeconds(1)) // 每1秒收集一批，最多50个chunk
-                    .filter(chunks -> !chunks.isEmpty())
-                    .map(chunks -> {
-                        try {
-                            // 合并这一批音频
-                            int totalLength = chunks.stream().mapToInt(arr -> arr.length).sum();
-                            byte[] combined = new byte[totalLength];
-                            int offset = 0;
-                            for (byte[] arr : chunks) {
-                                System.arraycopy(arr, 0, combined, offset, arr.length);
-                                offset += arr.length;
-                            }
-                            // 调用识别
-                            String partialText = recognition(combined);
-                            return KoreanNumberConverter.convertNumberToKO(partialText);
-                        } catch (Exception e) {
-                            logger.error("处理音频块失败", e);
-                            return "";
-                        }
-                    })
-                    .doOnNext(partialText -> {
-                        if (partialText != null && !partialText.isEmpty()) {
-                            logger.info("部分识别结果: {}", partialText);
-                            finalResult.append(partialText).append(" ");
-                        }
-                    })
-                    .blockLast(); // 等待整个流消费完毕
+        try (ByteArrayOutputStream currentBuffer = new ByteArrayOutputStream()) {
+            try {
+                final long[] lastRecognitionTime = {System.currentTimeMillis()};
+                final long RECOGNITION_INTERVAL = 3000; // 3秒识别间隔
+                final int BUFFER_SIZE_THRESHOLD = 32000; // 1秒音频数据 (16kHz * 2字节 * 1秒)
+                // 订阅音频流
+                audioSink.asFlux()
+                        .publishOn(Schedulers.boundedElastic())
+                        .doOnNext(chunk -> {
+                            try {
+                                // 将音频块添加到缓冲区
+                                currentBuffer.write(chunk);
 
-            return finalResult.toString().trim();
-        } catch (Exception e) {
-            logger.error("OpenAI伪流式语音识别失败", e);
-            return "";
+                                long currentTime = System.currentTimeMillis();
+                                // 检查是否需要进行识别：
+                                // 1. 缓冲区数据足够大 (超过1秒音频)
+                                // 2. 距离上次识别已超过设定间隔
+                                if (currentBuffer.size() > BUFFER_SIZE_THRESHOLD &&
+                                        (currentTime - lastRecognitionTime[0]) > RECOGNITION_INTERVAL) {
+
+                                    // 获取当前缓冲区的数据
+                                    byte[] audioData = currentBuffer.toByteArray();
+
+                                    // 优先在检测到静音时进行识别，避免在句子中间切断
+                                    // 如果没有检测到静音但距离上次识别时间足够长，也进行识别
+                                    if (isSilence(getLastSecond(audioData)) ||
+                                            (currentTime - lastRecognitionTime[0]) > RECOGNITION_INTERVAL * 2) {
+                                        // 进行识别
+                                        String partialText = recognition(audioData);
+                                        partialText = KoreanNumberConverter.convertNumberToKO(partialText);
+
+                                        if (!partialText.trim().isEmpty()) {
+                                            logger.info("部分识别结果: {}", partialText);
+                                            finalResult.append(partialText).append(" ");
+                                        }
+
+                                        // 清空缓冲区并更新时间戳
+                                        currentBuffer.reset();
+                                        lastRecognitionTime[0] = currentTime;
+                                    }
+                                }
+                            } catch (Exception e) {
+                                logger.error("处理音频块失败", e);
+                            }
+                        })
+                        .doOnError(error -> {
+                            logger.error("音频流发生错误", error);
+                        })
+                        .doOnComplete(() -> {
+                            // 流结束时处理剩余的音频数据
+                            try {
+                                if (currentBuffer.size() > 0) {
+                                    byte[] remainingAudio = currentBuffer.toByteArray();
+                                    // 只有当剩余数据足够大时才进行识别，避免处理过短的音频
+                                    if (remainingAudio.length > 1600) { // 至少50毫秒的数据 (16kHz * 2字节 * 0.05秒)
+                                        String partialText = recognition(remainingAudio);
+                                        partialText = KoreanNumberConverter.convertNumberToKO(partialText);
+
+                                        if (!partialText.trim().isEmpty()) {
+                                            logger.info("最终识别结果: {}", partialText);
+                                            finalResult.append(partialText);
+                                        }
+                                    }
+                                }
+                            } catch (Exception e) {
+                                logger.error("处理剩余音频数据失败", e);
+                            }
+                        })
+                        .subscribe();
+
+                // 等待流处理完成
+                audioSink.asFlux().blockLast();
+
+                return finalResult.toString().trim();
+            } catch (Exception e) {
+                logger.error("OpenAI伪流式语音识别失败: {}", e.getMessage(), e);
+                return "";
+            }
+        } catch (IOException e) {
+            logger.warn("关闭字节输出流失败", e);
         }
+        return "";
+    }
+
+    /**
+     * 简单的静音检测方法
+     * @param audioData 音频数据
+     * @return 是否检测到静音
+     */
+    private boolean isSilence(byte[] audioData) {
+        if (audioData.length < 2) {
+            return true;
+        }
+        
+        // 计算音频的RMS值（均方根）
+        long sum = 0;
+        for (int i = 0; i < audioData.length; i += 2) {
+            // 16位音频数据，两个字节为一个采样点
+            int sample = (audioData[i] & 0xFF) | ((audioData[i + 1] & 0xFF) << 8);
+            if (sample > 32767) {
+                sample -= 65536; // 转换为有符号值
+            }
+            sum += sample * sample;
+        }
+        
+        double rms = Math.sqrt((double) sum / ((double) audioData.length / 2));
+        // 如果RMS值低于阈值，则认为是静音
+        return rms < 500; // 静音阈值，可根据需要调整
+    }
+    
+    /**
+     * 获取音频数据的最后1秒
+     * @param audioData 音频数据
+     * @return 最后1秒的音频数据
+     */
+    private byte[] getLastSecond(byte[] audioData) {
+        // 16kHz采样率，16位深度，单声道 = 32000字节/秒
+        int bytesPerSecond = 32000;
+        if (audioData.length <= bytesPerSecond) {
+            return audioData;
+        }
+        // 返回最后1秒的数据
+        return java.util.Arrays.copyOfRange(audioData, audioData.length - bytesPerSecond, audioData.length);
     }
 
 

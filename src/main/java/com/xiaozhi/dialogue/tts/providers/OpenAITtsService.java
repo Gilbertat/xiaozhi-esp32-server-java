@@ -2,7 +2,6 @@ package com.xiaozhi.dialogue.tts.providers;
 
 import com.xiaozhi.dialogue.tts.TtsService;
 import com.xiaozhi.entity.SysConfig;
-import com.xiaozhi.utils.AudioUtils;
 import okhttp3.*;
 import okio.ByteString;
 import org.jetbrains.annotations.NotNull;
@@ -17,7 +16,6 @@ import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import java.io.*;
 import java.util.Base64;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -42,7 +40,7 @@ public class OpenAITtsService implements TtsService {
         this.baseUrl = config.getBaseUrl() != null ? config.getBaseUrl() : API_URL;
         this.model = config.getModelName() != null ? config.getModelName() : "tts-1";
         this.voice = mapVoiceName(voiceName);
-        this.speed = 1.0; // 默认速度
+        this.speed = 1.3; // 默认速度
         this.outputPath = outputPath;
 
         this.httpClient = new OkHttpClient.Builder()
@@ -137,6 +135,7 @@ public class OpenAITtsService implements TtsService {
             requestBody.put("model", model);
             requestBody.put("input", text);
             requestBody.put("voice", voice);
+            requestBody.put("speed", speed);
             requestBody.put("response_format", "wav");
 
             RequestBody body = RequestBody.create(
@@ -354,36 +353,4 @@ public class OpenAITtsService implements TtsService {
         };
     }
 
-    /**
-     * 优化文本，让TTS生成语音更自然
-     * 主要做：
-     * - 在句子末尾加标点，增加停顿
-     * - 在长句中添加逗号，模拟自然呼吸
-     * - 对感叹句或疑问句保留原标点，增强语气
-     */
-    private static String naturalizeText(String text) {
-        if (text == null || text.isEmpty()) return "";
-
-        // 1. 去掉多余空格
-        text = text.trim().replaceAll("\\s+", " ");
-
-        // 2. 给没有标点的句子末尾加句号
-        if (!text.matches(".*[。！？!?.]$")) {
-            text += ".";
-        }
-
-        // 3. 对长句（>40字符）自动加逗号停顿
-        StringBuilder sb = new StringBuilder();
-        int count = 0;
-        for (char c : text.toCharArray()) {
-            sb.append(c);
-            count++;
-            if (count > 40 && c == ' ') { // 每40字符空格处加逗号
-                sb.append(",");
-                count = 0;
-            }
-        }
-
-        return sb.toString();
-    }
 }
