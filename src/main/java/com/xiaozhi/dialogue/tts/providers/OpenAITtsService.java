@@ -40,7 +40,7 @@ public class OpenAITtsService implements TtsService {
         this.baseUrl = config.getBaseUrl() != null ? config.getBaseUrl() : API_URL;
         this.model = config.getModelName() != null ? config.getModelName() : "tts-1";
         this.voice = mapVoiceName(voiceName);
-        this.speed = 1.3; // 默认速度
+        this.speed = 1.0; // 默认速度
         this.outputPath = outputPath;
 
         this.httpClient = new OkHttpClient.Builder()

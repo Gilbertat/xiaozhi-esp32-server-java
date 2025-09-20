@@ -5,23 +5,21 @@ import com.xiaozhi.entity.SysConfig;
 import com.xiaozhi.utils.AudioUtils;
 import com.xiaozhi.utils.KoreanNumberConverter;
 import okhttp3.*;
-import org.jetbrains.annotations.NotNull;
+
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 
-import java.io.ByteArrayInputStream;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.time.Duration;
+
 import java.util.concurrent.TimeUnit;
-import java.util.regex.MatchResult;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
 
 /**
  * OpenAI Whisper STT服务实现
@@ -142,8 +140,8 @@ public class OpenAISttService implements SttService {
         try (ByteArrayOutputStream currentBuffer = new ByteArrayOutputStream()) {
             try {
                 final long[] lastRecognitionTime = {System.currentTimeMillis()};
-                final long RECOGNITION_INTERVAL = 3000; // 3秒识别间隔
-                final int BUFFER_SIZE_THRESHOLD = 32000; // 1秒音频数据 (16kHz * 2字节 * 1秒)
+                final long RECOGNITION_INTERVAL = 1000; // 1秒识别间隔，提高响应速度
+                final int BUFFER_SIZE_THRESHOLD = 16000; // 0.5秒音频数据 (16kHz * 2字节 * 0.5秒)
                 // 订阅音频流
                 audioSink.asFlux()
                         .publishOn(Schedulers.boundedElastic())
@@ -154,7 +152,7 @@ public class OpenAISttService implements SttService {
 
                                 long currentTime = System.currentTimeMillis();
                                 // 检查是否需要进行识别：
-                                // 1. 缓冲区数据足够大 (超过1秒音频)
+                                // 1. 缓冲区数据足够大 (超过0.5秒音频)
                                 // 2. 距离上次识别已超过设定间隔
                                 if (currentBuffer.size() > BUFFER_SIZE_THRESHOLD &&
                                         (currentTime - lastRecognitionTime[0]) > RECOGNITION_INTERVAL) {
@@ -165,7 +163,7 @@ public class OpenAISttService implements SttService {
                                     // 优先在检测到静音时进行识别，避免在句子中间切断
                                     // 如果没有检测到静音但距离上次识别时间足够长，也进行识别
                                     if (isSilence(getLastSecond(audioData)) ||
-                                            (currentTime - lastRecognitionTime[0]) > RECOGNITION_INTERVAL * 2) {
+                                            (currentTime - lastRecognitionTime[0]) > RECOGNITION_INTERVAL * 1.5) {
                                         // 进行识别
                                         String partialText = recognition(audioData);
                                         partialText = KoreanNumberConverter.convertNumberToKO(partialText);
@@ -193,7 +191,7 @@ public class OpenAISttService implements SttService {
                                 if (currentBuffer.size() > 0) {
                                     byte[] remainingAudio = currentBuffer.toByteArray();
                                     // 只有当剩余数据足够大时才进行识别，避免处理过短的音频
-                                    if (remainingAudio.length > 1600) { // 至少50毫秒的数据 (16kHz * 2字节 * 0.05秒)
+                                    if (remainingAudio.length > 8000) { // 至少0.25秒的数据 (16kHz * 2字节 * 0.25秒)
                                         String partialText = recognition(remainingAudio);
                                         partialText = KoreanNumberConverter.convertNumberToKO(partialText);
 

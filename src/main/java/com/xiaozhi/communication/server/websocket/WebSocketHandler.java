@@ -4,7 +4,7 @@ import com.xiaozhi.communication.common.*;
 import com.xiaozhi.communication.domain.*;
 import com.xiaozhi.dialogue.llm.tool.mcp.device.DeviceMcpService;
 import com.xiaozhi.entity.SysDevice;
-import com.xiaozhi.service.SysDeviceService;
+
 import com.xiaozhi.utils.JsonUtil;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
