@@ -80,7 +80,6 @@ public class OpenAISttService implements SttService {
                     .addFormDataPart("file", tempFile.getName(),
                             RequestBody.create(MediaType.parse("audio/wav"), tempFile))
                     .addFormDataPart("model", model)
-                    .addFormDataPart("language", "ko")
                     .addFormDataPart("response_format", "json")
                     .build();
 
@@ -95,10 +94,6 @@ public class OpenAISttService implements SttService {
 
             // 发送请求
             try (Response response = httpClient.newCall(request).execute()) {
-                if (response == null) {
-                    logger.error("recognition: httpClient 执行返回 null response");
-                    return "";
-                }
 
                 logger.debug("recognition: response.code = {}", response.code());
 
@@ -109,10 +104,6 @@ public class OpenAISttService implements SttService {
                 }
 
                 ResponseBody body = response.body();
-                if (body == null) {
-                    logger.error("OpenAI STT API 返回空响应体 (response.body == null)");
-                    return "";
-                }
 
                 String responseBody = body.string();
                 if (responseBody.isEmpty()) {
