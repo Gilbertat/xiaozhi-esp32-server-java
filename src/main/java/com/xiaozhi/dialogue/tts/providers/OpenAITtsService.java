@@ -2,7 +2,6 @@ package com.xiaozhi.dialogue.tts.providers;
 
 import com.xiaozhi.dialogue.tts.TtsService;
 import com.xiaozhi.entity.SysConfig;
-import com.xiaozhi.utils.AudioUtils;
 import okhttp3.*;
 import okio.ByteString;
 import org.jetbrains.annotations.NotNull;
@@ -17,7 +16,6 @@ import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import java.io.*;
 import java.util.Base64;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -27,7 +25,7 @@ import java.util.function.Consumer;
 public class OpenAITtsService implements TtsService {
     private static final Logger logger = LoggerFactory.getLogger(OpenAITtsService.class);
     private static final String PROVIDER_NAME = "openai";
-    private static final String API_URL = "https://api.openai.com/v1/audio/speech";
+    private final String apiPath;
 
     private final String apiKey;
     private final String baseUrl;
@@ -39,7 +37,8 @@ public class OpenAITtsService implements TtsService {
 
     public OpenAITtsService(SysConfig config, String voiceName, String outputPath) {
         this.apiKey = config.getApiKey();
-        this.baseUrl = config.getBaseUrl() != null ? config.getBaseUrl() : API_URL;
+        this.apiPath = config.getApiUrl();
+        this.baseUrl = config.getBaseUrl() != null ? config.getBaseUrl() + apiPath : "";
         this.model = config.getModelName() != null ? config.getModelName() : "tts-1";
         this.voice = mapVoiceName(voiceName);
         this.speed = 1.0; // 默认速度
