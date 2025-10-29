@@ -138,6 +138,40 @@ public class DeviceController extends BaseController {
     }
 
     /**
+     * 修改设备名称
+     * 
+     * @param request 包含设备ID和设备名称的请求体
+     * @return
+     */
+    @PostMapping("/rename")
+    @ResponseBody
+    @Operation(summary = "修改设备名称", description = "返回修改结果")
+    public AjaxResult renameDevice(@RequestBody Map<String, String> request) {
+        try {
+            String deviceId = request.get("deviceId");
+            String deviceName = request.get("deviceName");
+            
+            if (deviceId == null || deviceId.isEmpty()) {
+                return AjaxResult.error("设备ID不能为空");
+            }
+            
+            if (deviceName == null || deviceName.isEmpty()) {
+                return AjaxResult.error("设备名称不能为空");
+            }
+            
+            SysDevice device = new SysDevice();
+            device.setDeviceId(deviceId);
+            device.setDeviceName(deviceName);
+            device.setUserId(CmsUtils.getUserId());
+            deviceService.update(device);
+            return AjaxResult.success();
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            return AjaxResult.error();
+        }
+    }
+
+    /**
      * 删除设备
      * 
      * @param device

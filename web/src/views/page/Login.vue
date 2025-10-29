@@ -194,7 +194,10 @@ export default {
             }).then(res => {
               this.loading = false
               if (res.code === 200) {
-                Cookies.set('userInfo', JSON.stringify(res.data), { expires: 30 })
+                // 保存JWT token到localStorage
+                localStorage.setItem('jwt_token', res.data.token)
+                // 保存用户信息到store和cookie
+                Cookies.set('userInfo', JSON.stringify(res.data.user), { expires: 30 })
                 if (this.loginForm.rememberMe) {
                   Cookies.set('username', this.loginForm.username, { expires: 30 })
                   Cookies.set('rememberMe', encrypt(this.loginForm.password), { expires: 30 })
@@ -202,7 +205,7 @@ export default {
                   Cookies.remove('username')
                   Cookies.remove('rememberMe')
                 }
-                this.$store.commit('USER_INFO', res.data)
+                this.$store.commit('USER_INFO', res.data.user)
                 this.$router.push('/dashboard')
               } else {
                 this.$message.error(res.message)

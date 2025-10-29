@@ -3,12 +3,12 @@ package com.xiaozhi.dialogue.stt.providers;
 import com.xiaozhi.entity.SysConfig;
 import com.xiaozhi.utils.AudioUtils;
 import com.xiaozhi.utils.KoreanNumberConverter;
-import lombok.extern.slf4j.Slf4j;
+
 import okhttp3.*;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
+
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class OpenAIStreamSttEngine {
 
-    private static final Logger logger = LoggerFactory.getLogger(OpenAISttService.class);
+    private static final Logger logger = LoggerFactory.getLogger(OpenAIStreamSttEngine.class);
 
     // 请求地址
     private final String baseUrl;
@@ -79,6 +79,7 @@ public class OpenAIStreamSttEngine {
                             RequestBody.create(MediaType.parse("audio/wav"), tempFile))
                     .addFormDataPart("model", model)
                     .addFormDataPart("response_format", "json")
+                    .addFormDataPart("language", "ko")
                     .build();
 
             Request request = new Request.Builder()

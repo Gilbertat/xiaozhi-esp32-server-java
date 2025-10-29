@@ -1,0 +1,131 @@
+/* GuidePage.css */
+.guide-page-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #d1fae5 100%);
+  padding: 1rem;
+}
+
+.guide-card {
+  width: 100%;
+  max-width: 32rem; /* max-w-lg */
+  background-color: rgba(255, 255, 255, 0.8); /* bg-white/80 */
+  backdrop-filter: blur(12px); /* backdrop-blur-sm */
+  border-radius: 1rem; /* rounded-2xl */
+  padding: 2rem; /* p-8 */
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.05); /* shadow-xl */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* border border-white/30 */
+  text-align: center;
+}
+
+.guide-title {
+  font-size: 2rem; /* text-2xl */
+  font-weight: bold; /* font-bold */
+  margin-bottom: 0.5rem; /* mb-2 */
+  background: linear-gradient(to right, #0ea5e9, #0d9488); /* bg-gradient-to-r from-blue-500 to-teal-500 */
+  -webkit-background-clip: text; /* bg-clip-text */
+  -webkit-text-fill-color: transparent; /* text-transparent */
+  background-clip: text;
+}
+
+.guide-subtitle {
+  color: #64748b; /* text-gray-600 */
+  margin-bottom: 2rem; /* mb-8 */
+}
+
+.guide-progress-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem; /* mb-8 */
+}
+
+.guide-progress-dot {
+  width: 0.5rem; /* h-1 */
+  height: 0.25rem; /* h-1 */
+  background-color: #cbd5e1; /* bg-gray-300 */
+  border-radius: 9999px; /* rounded-full */
+  margin: 0 0.25rem; /* mx-1 */
+  cursor: pointer;
+  transition: width 0.3s ease, background-color 0.3s ease; /* transition */
+}
+
+.guide-progress-dot-active {
+  width: 2rem; /* 当前及之前的步骤显示为长条，其他为点 */
+  background-color: #0ea5e9; /* bg-blue-500 */
+}
+
+.guide-step-content {
+  margin-bottom: 2rem; /* mb-8 */
+}
+
+.guide-step-title {
+  font-size: 1.5rem; /* text-xl */
+  font-weight: 600; /* font-semibold */
+  color: #1e293b; /* text-gray-800 */
+  margin-bottom: 1rem; /* mb-4 */
+}
+
+.guide-step-description {
+  color: #64748b; /* text-gray-600 */
+  font-size: 1.125rem; /* text-lg */
+}
+
+.guide-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.guide-skip-button {
+  padding: 0.5rem 1rem; /* px-4 py-2 */
+  border-radius: 0.5rem; /* rounded-lg */
+  background-color: #f1f5f9; /* bg-gray-100 */
+  color: #475569; /* text-gray-600 */
+  font-weight: 500; /* font-medium */
+  border: none; /* border-0 */
+  cursor: pointer; /* cursor */
+  transition: all 0.2s ease; /* transition */
+}
+
+.guide-skip-button:hover {
+  opacity: 0.8;
+}
+
+.guide-nav-container {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.guide-prev-button {
+  padding: 0.5rem 1rem; /* px-4 py-2 */
+  border-radius: 0.5rem; /* rounded-lg */
+  background-color: #f1f5f9; /* bg-gray-100 */
+  color: #475569; /* text-gray-600 */
+  font-weight: 500; /* font-medium */
+  border: none; /* border-0 */
+  cursor: pointer; /* cursor */
+  transition: all 0.2s ease; /* transition */
+}
+
+.guide-prev-button:disabled {
+  background-color: #cbd5e1; /* bg-gray-300 when disabled */
+  color: #94a3b8; /* text-gray-400 when disabled */
+  cursor: not-allowed; /* cursor */
+}
+
+.guide-next-button {
+  padding: 0.5rem 1rem; /* px-4 py-2 */
+  border-radius: 0.5rem; /* rounded-lg */
+  background: linear-gradient(to right, #0ea5e9, #0d9488); /* bg-gradient-to-r from-blue-500 to-teal-500 */
+  color: white; /* text-white */
+  font-weight: 500; /* font-medium */
+  border: none; /* border-0 */
+  cursor: pointer; /* cursor */
+  transition: all 0.2s ease; /* transition */
+}
+
+.guide-next-button:hover {
+  transform: translateY(-2px);
+}

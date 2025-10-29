@@ -1,0 +1,9 @@
+/* App.css - Global styles */
+.app {
+  min-height: 100vh;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Remove conflicting styles since Tailwind is now primary styling solution */

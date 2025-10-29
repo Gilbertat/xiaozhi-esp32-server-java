@@ -1,0 +1,167 @@
+/* AssignRoleModal.css */
+.assign-role-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2147483647; /* 使用最大可能的z-index值 */
+  overflow: hidden; /* 防止页面滚动 */
+  /* 确保遮罩层完全覆盖视口，不受任何父元素影响 */
+  margin: 0;
+  padding: 0;
+  /* 确保没有任何滚动偏移影响 */
+  -webkit-overflow-scrolling: touch; /* 优化移动端滚动 */
+}
+
+.assign-role-modal-content {
+  background-color: white;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  z-index: 2147483647; /* 最大z-index值 */
+  max-height: 90vh;
+  overflow-y: auto;
+  /* 确保模态框居中对齐 */
+  margin: 0 auto;
+}
+
+.assign-role-modal-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #1f2937;
+  margin-bottom: 1.5rem;
+}
+
+.assign-role-modal-device-info {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background-color: #f3f4f6;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.assign-role-modal-device-name-label {
+  color: #6b7280;
+  font-weight: normal;
+  margin-right: 0.5rem;
+}
+
+.assign-role-modal-current-role {
+  margin-bottom: 1rem;
+}
+
+.assign-role-modal-current-role-text {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+}
+
+.assign-role-modal-error {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.assign-role-modal-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+}
+
+.assign-role-modal-no-roles {
+  text-align: center;
+  padding: 1rem;
+  color: #6b7280;
+}
+
+.assign-role-modal-form {
+  /* Empty - just for organization */
+}
+
+.assign-role-modal-role-group {
+  margin-bottom: 1.5rem;
+}
+
+.assign-role-modal-role-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.assign-role-modal-role-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.assign-role-modal-role-item {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  background-color: white;
+}
+
+.assign-role-modal-role-item-selected {
+  border: 2px solid #3b82f6; /* selected */
+  background-color: #eff6ff; /* selected */
+}
+
+.assign-role-modal-role-input {
+  margin-right: 0.75rem;
+  cursor: pointer;
+}
+
+.assign-role-modal-role-name {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.assign-role-modal-role-desc {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.assign-role-modal-button-container {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.assign-role-modal-cancel-button {
+  padding: 0.5rem 1rem;
+  background-color: #d1d5db;
+  color: #374151;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+}
+
+.assign-role-modal-save-button {
+  padding: 0.5rem 1rem;
+  background: linear-gradient(to right, #3b82f6, #2dd4bf);
+  color: white;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+}

@@ -4,8 +4,39 @@ import { message } from "ant-design-vue";
 
 // 设置axios的基础URL，根据环境变量
 axios.defaults.baseURL = process.env.BASE_API;
-// 设置携带凭证
-axios.defaults.withCredentials = true;
+// 不再设置携带凭证
+// axios.defaults.withCredentials = true;
+
+// 请求拦截器 - 在请求发送前添加token
+axios.interceptors.request.use(
+  config => {
+    // 从localStorage获取JWT token
+    const token = localStorage.getItem('jwt_token');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  error => {
+    return Promise.reject(error);
+  }
+);
+
+// 响应拦截器 - 处理认证失败
+axios.interceptors.response.use(
+  response => {
+    return response;
+  },
+  error => {
+    if (error.response && error.response.status === 401) {
+      // 清除过期的token
+      localStorage.removeItem('jwt_token');
+      // 重定向到登录页
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 // 创建一个工具函数，用于处理静态资源URL
 export const getResourceUrl = (path) => {

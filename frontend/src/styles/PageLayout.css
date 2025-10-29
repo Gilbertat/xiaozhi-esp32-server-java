@@ -1,0 +1,41 @@
+/* PageLayout.css */
+.page-layout-container {
+  min-height: 100vh; /* min-h-screen */
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #d1fae5 100%); /* bg-gradient-to-b from-blue-50 to-teal-50 */
+  padding-top: 4rem; /* pt-16 */
+}
+
+.page-layout-main {
+  padding: 2rem 0; /* py-8 */
+}
+
+.page-layout-content {
+  max-width: 1200px; /* max-w-6xl */
+  margin: 0 auto; /* mx-auto */
+  padding-left: 1rem; /* px-4 */
+  padding-right: 1rem; /* px-4 */
+}
+
+.page-layout-title {
+  font-size: 2.25rem; /* text-4xl */
+  font-weight: bold; /* font-bold */
+  text-align: center; /* text-center */
+  margin-bottom: 2.5rem; /* mb-10 */
+  background: linear-gradient(to right, #2563eb, #0d9488); /* bg-gradient-to-r from-blue-600 to-teal-500 */
+  -webkit-background-clip: text; /* bg-clip-text */
+  -webkit-text-fill-color: transparent; /* text-transparent */
+  background-clip: text;
+  color: transparent;
+}
+
+.page-layout-content-wrapper {
+  background-color: rgba(255, 255, 255, 0.6); /* bg-white bg-opacity-60 */
+  backdrop-filter: blur(12px); /* backdrop-blur-sm */
+  border-radius: 1rem; /* rounded-2xl */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
+  padding: 1.5rem; /* p-6 */
+  position: relative; /* 确保相对定位 */
+  overflow: visible; /* 确保内容不会被裁剪 */
+  /* 避免创建新的层叠上下文，除非绝对必要 */
+  z-index: auto;
+}

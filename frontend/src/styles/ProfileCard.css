@@ -1,0 +1,135 @@
+/* ProfileCard.css */
+
+.profile-card-container {
+  background-color: rgba(255, 255, 255, 0.8); /* bg-white/80 */
+  backdrop-filter: blur(12px); /* backdrop-blur-sm */
+  border-radius: 1rem; /* rounded-2xl */
+  padding: 2rem; /* p-8 */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* border border-white/30 */
+  text-align: center; /* text-center */
+  width: 100%; /* Ensure full width */
+  box-sizing: border-box; /* Ensure padding is included in width */
+  /* 添加额外的保护措施防止布局问题 */
+  position: relative;
+  overflow: visible;
+}
+
+.profile-card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* 添加额外的保护措施防止布局问题 */
+  position: relative;
+  overflow: visible;
+}
+
+.profile-card-avatar-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 6rem;
+  height: 6rem;
+  /* 确保容器不会影响布局 */
+  flex-shrink: 0;
+  /* 使头像在卡片内居中 */
+  margin: 0 auto 1.5rem auto;
+}
+
+.profile-card-avatar {
+  width: 6rem;
+  height: 6rem;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #dbeafe, #ccfbf1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 4px solid white;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 1;
+  /* 确保头像不会被其他元素影响 */
+  flex-shrink: 0;
+  box-sizing: border-box;
+  /* 确保头像内容居中 */
+  text-align: center;
+}
+
+.profile-card-avatar-upload {
+  position: absolute;
+  bottom: -0.5rem;
+  right: -0.5rem;
+  background: linear-gradient(to right, #3b82f6, #2dd4bf);
+  padding: 0.5rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  transition: transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid white;
+  outline: none;
+  /* 确保按钮不会影响布局 */
+  box-sizing: border-box;
+  /* 防止按钮被点击事件干扰 */
+  pointer-events: auto;
+}
+
+.profile-card-avatar-upload:hover {
+  transform: scale(1.1);
+}
+
+.profile-card-info {
+  margin-top: 1.5rem;
+  text-align: left;
+  width: 100%;
+  max-width: 100%; /* Remove max-width restriction */
+}
+
+.profile-card-info-group {
+  margin-bottom: 1rem;
+}
+
+.profile-card-info-group-last {
+  margin-bottom: 1.5rem;
+}
+
+.profile-card-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.25rem;
+}
+
+.profile-card-value {
+  padding: 0.75rem 1rem;
+  background-color: #f9fafb;
+  border-radius: 0.5rem;
+  color: #1f2937;
+  font-weight: 500;
+}
+
+/* 为图标添加额外的样式保护 */
+.profile-card-avatar-upload .text-white {
+  width: 1rem;
+  height: 1rem;
+  color: white;
+  /* 确保图标居中 */
+  display: block;
+  margin: auto;
+}
+
+/* 确保隐藏的文件输入不会影响布局 */
+.profile-card-avatar-upload input[type="file"].hidden {
+  display: none !important;
+  visibility: hidden !important;
+  position: absolute !important;
+  width: 0 !important;
+  height: 0 !important;
+  opacity: 0 !important;
+}

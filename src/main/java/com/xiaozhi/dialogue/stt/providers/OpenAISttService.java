@@ -2,20 +2,14 @@ package com.xiaozhi.dialogue.stt.providers;
 
 import com.xiaozhi.dialogue.stt.SttService;
 import com.xiaozhi.entity.SysConfig;
-import com.xiaozhi.utils.AudioUtils;
-import com.xiaozhi.utils.KoreanNumberConverter;
 import okhttp3.*;
 
-import org.json.JSONObject;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Sinks;
 
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 

@@ -15,10 +15,34 @@
               <a-divider />
               <div class="account-center-detail">
                 <div class="detailTitle">个人信息</div>
+                <p>
+                  昵称: 
+                  <span v-if="!isEditingNickname">{{ user.name }}</span>
+                  <a-input 
+                    v-else 
+                    v-model="editNickname" 
+                    style="width: 70%; margin-left: 10px;" 
+                    size="small" 
+                  />
+                </p>
+                <p>邮箱: {{ user.email }}</p>
                 <p>账户: {{ 'Admin' }}</p>
                 <p>注册时间: {{ user.createTime }}</p>
                 <p>手机: {{ user.tel }}</p>
-                <p>邮箱: {{ user.email }}</p>
+                <div style="margin-top: 10px;">
+                  <a-button 
+                    v-if="!isEditingNickname" 
+                    type="primary" 
+                    size="small" 
+                    @click="startEditing"
+                  >
+                    编辑资料
+                  </a-button>
+                  <template v-else>
+                    <a-button type="primary" size="small" @click="saveProfile" style="margin-right: 5px;">保存</a-button>
+                    <a-button size="small" @click="cancelEdit">取消</a-button>
+                  </template>
+                </div>
               </div>
               <a-divider />
               <div class="account-center-detail">
@@ -65,7 +89,10 @@ export default {
       },
       user: {},
       // 遮罩层
-      loading: false
+      loading: false,
+      isEditingNickname: false,
+      editNickname: '',
+      originalNickname: ''
     }
   },
   computed: {
@@ -76,7 +103,39 @@ export default {
   created () {
     this.user = this.info
   },
-  methods: {}
+  methods: {
+    startEditing() {
+      this.editNickname = this.user.name
+      this.originalNickname = this.user.name
+      this.isEditingNickname = true
+    },
+    async saveProfile() {
+      try {
+        const response = await axios.post({
+          url: api.user.updateProfile,
+          data: {
+            name: this.editNickname,
+          }
+        })
+        
+        if (response.code === 200) {
+          this.user.name = this.editNickname
+          this.$message.success('资料更新成功')
+          this.isEditingNickname = false
+          // 更新store中的用户信息
+          this.$store.commit('SET_USER_INFO', this.user)
+        } else {
+          this.$message.error(response.message || '更新失败')
+        }
+      } catch (error) {
+        this.$message.error('更新失败: ' + error.message)
+      }
+    },
+    cancelEdit() {
+      this.editNickname = this.originalNickname
+      this.isEditingNickname = false
+    }
+  }
 }
 </script>
 

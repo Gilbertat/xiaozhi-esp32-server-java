@@ -5,6 +5,7 @@ export default {
     query: "/api/user/query",
     queryUsers: "/api/user/queryUsers",
     update: "/api/user/update",
+    updateProfile: "/api/user/updateProfile",
     sendEmailCaptcha: "/api/user/sendEmailCaptcha",
     checkCaptcha: "/api/user/checkCaptcha",
     checkUser: "/api/user/checkUser",

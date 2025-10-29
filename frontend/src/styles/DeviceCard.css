@@ -1,0 +1,138 @@
+/* DeviceCard.css */
+.device-card-container {
+  background-color: rgba(255, 255, 255, 0.8); /* bg-white/80 */
+  backdrop-filter: blur(12px); /* backdrop-blur-sm */
+  border-radius: 0.75rem; /* rounded-xl */
+  padding: 1.25rem; /* p-5 */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* border border-white/30 */
+  margin-bottom: 1rem; /* mb-4 */
+  transition: all 0.2s ease; /* transition-all duration-300 */
+  position: relative; /* 添加相对定位 */
+  overflow: visible; /* 确保内容不会被裁剪 */
+  z-index: auto; /* 避免创建不必要的层叠上下文 */
+}
+
+.device-card-header {
+  display: flex; /* flex */
+  justify-content: space-between; /* justify-between */
+  align-items: flex-start; /* items-start */
+}
+
+.device-card-info {
+  /* Empty - just for organization */
+}
+
+.device-card-name-editing {
+  font-size: 1.25rem; /* text-xl */
+  font-weight: 600; /* font-semibold */
+  color: #1f2937; /* text-gray-800 */
+  border: 2px solid #3b82f6; /* blue-500 border */
+  border-radius: 0.25rem; /* rounded */
+  padding: 0.25rem 0.5rem;
+  outline: none;
+  width: 70%;
+}
+
+.device-card-name-display {
+  font-size: 1.25rem; /* text-xl */
+  font-weight: 600; /* font-semibold */
+  color: #1f2937; /* text-gray-800 */
+  cursor: text; /* text cursor */
+  display: inline-block;
+}
+
+.device-card-status-container {
+  display: flex; /* flex */
+  align-items: center; /* items-center */
+  margin-top: 0.5rem; /* mt-2 */
+}
+
+.device-card-status-indicator {
+  width: 0.75rem; /* w-3 */
+  height: 0.75rem; /* h-3 */
+  border-radius: 9999px; /* rounded-full */
+  margin-right: 0.5rem; /* mr-2 */
+}
+
+.device-card-status-online {
+  background-color: #10b981; /* green-500 */
+}
+
+.device-card-status-offline {
+  background-color: #ef4444; /* red-500 */
+}
+
+.device-card-status-connecting {
+  background-color: #f59e0b; /* amber-500 */
+}
+
+.device-card-status-text {
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+  color: #6b7280; /* text-gray-600 */
+}
+
+.device-card-role {
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.device-card-role-label {
+  color: #6b7280;
+  font-weight: normal;
+  margin-right: 0.25rem;
+}
+
+.device-card-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.device-card-role-button {
+  padding: 0.25rem 0.75rem; /* px-3 py-1 */
+  background: linear-gradient(to right, #3b82f6, #60a5fa); /* bg-gradient-to-r from-blue-500 to-blue-400 */
+  color: white; /* text-white */
+  border-radius: 0.5rem; /* rounded-lg */
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+  border: none;
+  cursor: pointer;
+  opacity: 1;
+  transition: opacity 0.2s ease; /* transition-opacity */
+}
+
+.device-card-unbind-button {
+  padding: 0.25rem 0.75rem; /* px-3 py-1 */
+  background: linear-gradient(to right, #ef4444, #f97316); /* bg-gradient-to-r from-red-500 to-orange-400 */
+  color: white; /* text-white */
+  border-radius: 0.5rem; /* rounded-lg */
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+  border: none;
+  cursor: pointer;
+  opacity: 1;
+  transition: opacity 0.2s ease; /* transition-opacity */
+}
+
+.device-card-details {
+  margin-top: 0.75rem; /* mt-3 */
+  padding-top: 0.75rem; /* pt-3 */
+  border-top: 1px solid #f3f4f6; /* border-t border-gray-100 */
+}
+
+.device-card-details-grid {
+  display: grid; /* grid */
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* grid-cols-2 */
+  gap: 0.5rem; /* gap-2 */
+  font-size: 0.875rem; /* text-sm */
+  color: #6b7280; /* text-gray-600 */
+}
+
+.device-card-detail-item {
+  font-weight: 500;
+}

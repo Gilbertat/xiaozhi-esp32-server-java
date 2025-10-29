@@ -688,12 +688,8 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
             // 成功生成音频
             handleTtsSuccess(task, audioPath);
         } catch (TimeoutException e) {
-            // logger.warn("TTS生成超时 - 序号: {}, 重试次数: {}/{}, 内容: \"{}\"",
-            //         task.sentence.getSeq(), task.retryCount, MAX_RETRY_COUNT, task.sentence.getText());
             handleTtsFailure(task, "超时");
         } catch (Exception e) {
-            // logger.error("TTS生成失败 - 序号: {}, 重试次数: {}/{}, 错误: {}",
-            //         task.sentence.getSeq(), task.retryCount, MAX_RETRY_COUNT, e.getMessage());
             handleTtsFailure(task, e.getMessage());
         }
     }

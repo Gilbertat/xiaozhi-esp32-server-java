@@ -125,16 +125,19 @@
         UPDATE
             sys_user
         <set>
+            <if test="username != null and username != ''">username = #{username},</if>
             <if test="name != null and name != ''">`name` = #{name},</if>
             <if test="tel != null and tel != ''">tel = #{tel},</if>
             <if test="email != null and email != ''">email = #{email},</if>
             <if test="password != null and password != ''">password = #{password},</if>
             <if test="avatar != null and avatar != ''">avatar = #{avatar},</if>
-            <if test="state != null and state != ''">state = ${state},</if>
+            <if test="state != null and state != ''">state = #{state},</if>
+            <if test="isAdmin != null">isAdmin = #{isAdmin},</if>
+            <if test="loginIp != null and loginIp != ''">loginIp = #{loginIp},</if>
+            <if test="loginTime != null and loginTime != ''">loginTime = #{loginTime},</if>
         </set>
         WHERE
-            `username` = #{username}
-            <if test="email != null and email != ''">AND email = #{email}</if>
+            userId = #{userId}
     </update>
 
     <insert id="generateCode" parameterType="com.xiaozhi.entity.SysUser">

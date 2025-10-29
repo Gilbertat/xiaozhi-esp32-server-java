@@ -139,7 +139,7 @@ public class ChatService {
             String json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(prompt);
             System.out.println("=== 请求体 ===\n" + json + "\n=================");
         } catch (Exception e) {
-            logger.error("打印请求体失败:", e);
+//            logger.error("打印请求体失败:", e);
         }
         // 调用实际的流式聊天方法
         return chatModel.stream(prompt);

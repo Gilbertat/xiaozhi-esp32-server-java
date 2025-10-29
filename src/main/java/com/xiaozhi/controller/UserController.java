@@ -6,6 +6,7 @@ import com.xiaozhi.common.exception.UsernameNotFoundException;
 import com.xiaozhi.common.web.AjaxResult;
 import com.xiaozhi.common.web.PageFilter;
 import com.xiaozhi.common.web.SessionProvider;
+import com.xiaozhi.utils.JwtTokenUtil;
 import com.xiaozhi.entity.SysUser;
 import com.xiaozhi.security.AuthenticationService;
 import com.xiaozhi.service.SysDeviceService;
@@ -27,6 +28,7 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -55,6 +57,9 @@ public class UserController extends BaseController {
     @Resource
     private SessionProvider sessionProvider;
 
+    @Resource
+    private JwtTokenUtil jwtTokenUtil;
+
     @Value("${email.smtp.username}")
     private String emailUsername;
 
@@ -69,7 +74,7 @@ public class UserController extends BaseController {
      */
     @PostMapping("/login")
     @ResponseBody
-    @Operation(summary = "用户登录", description = "返回登录结果")
+    @Operation(summary = "用户登录", description = "返回登录结果和JWT令牌")
     public AjaxResult login(@RequestBody Map<String, Object> loginRequest, HttpServletRequest request) {
         try {
             String username = (String) loginRequest.get("username");
@@ -78,14 +83,17 @@ public class UserController extends BaseController {
             userService.login(username, password);
             SysUser user = userService.query(username);
 
-            // 保存用户到会话
-            HttpSession session = request.getSession();
-            session.setAttribute(SysUserService.USER_SESSIONKEY, user);
+            // 生成JWT令牌
+            String token = jwtTokenUtil.generateToken(user);
             
-            // 保存用户
-            CmsUtils.setUser(request, user);
-
-            return AjaxResult.success(user);
+            // 构建响应，包含用户信息和JWT令牌
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", token);
+            response.put("tokenType", "Bearer");
+            response.put("expiresIn", 86400); // 24小时
+            response.put("user", user);
+            
+            return AjaxResult.success(response);
         } catch (UsernameNotFoundException e) {
             return AjaxResult.error("用户不存在");
         } catch (UserPasswordNotMatchException e) {
@@ -225,6 +233,56 @@ public class UserController extends BaseController {
             return AjaxResult.error();
         }
     }
+    
+    /**
+     * 更新用户个人资料
+     *
+     * @param profileData 包含个人资料信息的请求体
+     * @return 修改结果
+     */
+    @PostMapping("/updateProfile")
+    @ResponseBody
+    @Operation(summary = "更新用户个人资料", description = "支持修改昵称和密码")
+    public AjaxResult updateProfile(@RequestBody Map<String, Object> profileData, HttpServletRequest request) {
+        try {
+            // 获取当前登录用户
+            Integer currentUserId = CmsUtils.getUserId();
+            if (currentUserId == null) {
+                return AjaxResult.error("用户未登录");
+            }
+            
+            SysUser currentUser = userService.selectUserByUserId(currentUserId);
+            if (currentUser == null) {
+                return AjaxResult.error("用户不存在");
+            }
+            
+            String password = (String) profileData.get("password");
+            String name = (String) profileData.get("name");
+            
+            // 如果提供了密码，则更新密码
+            if (StringUtils.hasText(password)) {
+                String encryptedPassword = authenticationService.encryptPassword(password);
+                currentUser.setPassword(encryptedPassword);
+            }
+            
+            // 如果提供了昵称，则更新昵称
+            if (StringUtils.hasText(name)) {
+                currentUser.setName(name);
+                // 如果没有头像，则根据新昵称生成头像
+                if (!StringUtils.hasText(currentUser.getAvatar())) {
+                    currentUser.setAvatar(ImageUtils.GenerateImg(name));
+                }
+            }
+            
+            if (0 < userService.update(currentUser)) {
+                return AjaxResult.success("个人资料更新成功");
+            }
+            return AjaxResult.error("更新失败");
+        } catch (Exception e) {
+            logger.error("更新个人资料失败", e);
+            return AjaxResult.error("更新失败: " + e.getMessage());
+        }
+    }
 
     /**
      * 邮箱验证码发送
@@ -353,6 +411,36 @@ public class UserController extends BaseController {
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
             return AjaxResult.error("操作失败,请联系管理员");
+        }
+    }
+    
+    /**
+     * 获取当前用户信息
+     *
+     * @return 当前用户信息
+     */
+    @GetMapping("/profile")
+    @ResponseBody
+    @Operation(summary = "获取当前用户信息", description = "返回当前用户信息")
+    public AjaxResult getProfile(HttpServletRequest request) {
+        try {
+            // 获取当前登录用户
+            Integer currentUserId = CmsUtils.getUserId();
+            if (currentUserId == null) {
+                return AjaxResult.error("用户未登录");
+            }
+            
+            SysUser currentUser = userService.selectUserByUserId(currentUserId);
+            if (currentUser == null) {
+                return AjaxResult.error("用户不存在");
+            }
+            
+            // 返回用户信息，移除敏感信息
+            currentUser.setPassword(null); // 不返回密码
+            return AjaxResult.success(currentUser);
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            return AjaxResult.error();
         }
     }
 }

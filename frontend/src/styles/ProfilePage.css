@@ -1,0 +1,187 @@
+/* ProfilePage.css - 样式文件 */
+.profile-loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 16rem; /* h-64 equivalent */
+}
+
+.profile-spinner {
+  width: 3rem; /* w-12 */
+  height: 3rem; /* h-12 */
+  border-top: 4px solid #3b82f6; /* border-t-4 border-blue-500 */
+  border: 4px solid transparent;
+  border-radius: 9999px; /* rounded-full */
+  border-top-color: #3b82f6; /* border-solid with top border blue */
+}
+
+/* 使用CSS媒体查询来确保正确布局 */
+.profile-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  width: 100%;
+  box-sizing: border-box;
+  /* 强制确保不会超出父容器 */
+  max-width: 100% !important;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .profile-layout {
+    flex-direction: row;
+  }
+}
+
+.profile-card-section {
+  width: 100%;
+  /* 强制确保不会超出父容器 */
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+@media (min-width: 1024px) {
+  .profile-card-section {
+    width: calc(100% / 3);
+    flex-shrink: 0;
+  }
+}
+
+.profile-form-section {
+  width: 100%;
+  /* 强制确保不会超出父容器 */
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+@media (min-width: 1024px) {
+  .profile-form-section {
+    width: calc(2 * 100% / 3);
+    flex-shrink: 0;
+  }
+}
+
+.profile-form-card {
+  background-color: rgba(255, 255, 255, 0.8); /* bg-white/80 */
+  backdrop-filter: blur(12px); /* backdrop-blur-sm */
+  border-radius: 1rem; /* rounded-2xl */
+  padding: 2rem; /* p-8 */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* border border-white/30 */
+  width: 100%;
+  box-sizing: border-box;
+  /* 强制确保卡片不会超出容器 */
+  max-width: 100% !important;
+  overflow: hidden;
+  /* 添加内边距，确保内容不会贴到边缘 */
+  padding: 2rem 1.5rem;
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem; /* space-y-6 equivalent */
+  /* 强制确保表单不会超出容器 */
+  width: 100%;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+.profile-form-title {
+  font-size: 1.5rem; /* text-2xl */
+  font-weight: bold; /* font-bold */
+  color: #1f2937; /* text-gray-800 */
+  margin-bottom: 1.5rem; /* mb-6 */
+}
+
+.profile-form-label {
+  display: block; /* block */
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+  color: #374151; /* text-gray-700 */
+  margin-bottom: 0.25rem; /* mb-1 */
+}
+
+.profile-input-wrapper {
+  width: 100%;
+  padding: 0 1rem; /* 左右各1rem的内边距 */
+  box-sizing: border-box;
+}
+
+.profile-input-email,
+.profile-input-name,
+.profile-input-password,
+.profile-input-confirm-password {
+  width: 90%; /* 缩短10% */
+  max-width: 90%; /* 确保不会超出容器 */
+  padding: 0.75rem 1rem; /* px-4 py-3 */
+  border-radius: 0.5rem; /* rounded-lg */
+  border: 2px solid #d1d5db; /* border border-gray-300 */
+  transition: all 0.2s ease; /* transition-all */
+  margin-bottom: 0.5rem; /* Additional spacing below */
+  box-sizing: border-box;
+  /* 居中显示 */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.profile-input-email {
+  background-color: #f9fafb; /* bg-gray-50 */
+  color: #4b5563; /* text-gray-600 */
+  cursor: not-allowed; /* cursor-not-allowed */
+}
+
+.profile-input-email:focus,
+.profile-input-name:focus,
+.profile-input-password:focus,
+.profile-input-confirm-password:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3); /* focus:ring-2 focus:ring-blue-500 */
+  border-color: #3b82f6; /* focus:border-blue-500 */
+}
+
+.profile-input-email:enabled:hover,
+.profile-input-name:enabled:hover,
+.profile-input-password:enabled:hover,
+.profile-input-confirm-password:enabled:hover {
+  border-color: #3b82f6;
+}
+
+.profile-submit-button {
+  width: 90%; /* 缩短10% */
+  max-width: none; /* md:w-auto (will be handled via media query) */
+  padding: 0.75rem 1.5rem; /* px-6 py-3 */
+  background: linear-gradient(to right, #3b82f6, #2dd4bf); /* bg-gradient-to-r from-blue-500 to-teal-400 */
+  color: white; /* text-white */
+  font-weight: 500; /* font-medium */
+  border-radius: 0.5rem; /* rounded-lg */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
+  transition: all 0.2s ease; /* transition-all duration-300 */
+  border: none;
+  cursor: pointer;
+  box-sizing: border-box;
+  /* 居中显示 */
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
+}
+
+.profile-update-success {
+  background-color: #f0fdf4; /* bg-green-50 */
+  border: 1px solid #bbf7d0; /* border border-green-200 */
+  color: #15803d; /* text-green-700 */
+  padding: 0.75rem 1rem; /* px-4 py-3 */
+  border-radius: 0.5rem; /* rounded-lg */
+  margin-bottom: 1.5rem; /* mb-6 */
+  box-sizing: border-box;
+}
+
+.profile-error-message {
+  background-color: #fef2f2; /* bg-red-50 */
+  border: 1px solid #fecaca; /* border border-red-200 */
+  color: #dc2626; /* text-red-700 */
+  padding: 0.75rem 1rem; /* px-4 py-3 */
+  border-radius: 0.5rem; /* rounded-lg */
+  margin-bottom: 1.5rem; /* mb-6 */
+  box-sizing: border-box;
+}
