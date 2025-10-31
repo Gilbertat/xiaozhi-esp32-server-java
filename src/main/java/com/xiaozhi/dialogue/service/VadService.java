@@ -68,6 +68,7 @@ public class VadService {
     private class VadState {
         // 语音状态
         private boolean speaking = false;
+        private long speechStartTime = 0; // 记录语音开始时间
         private long speechTime = 0;
         private long silenceTime = 0;
 
@@ -107,6 +108,7 @@ public class VadService {
             this.speaking = speaking;
             if (speaking) {
                 speechTime = System.currentTimeMillis();
+                speechStartTime = System.currentTimeMillis(); // 记录语音开始时间
                 silenceTime = 0;
             } else if (silenceTime == 0) {
                 silenceTime = System.currentTimeMillis();
@@ -226,6 +228,16 @@ public class VadService {
 
         public boolean isAccumTimedOut() {
             return System.currentTimeMillis() - lastAccumTime > 300;
+        }
+        
+        /**
+         * 获取当前语音输入的持续时间（毫秒）
+         */
+        public long getSpeechDuration() {
+            if (speaking && speechStartTime > 0) {
+                return System.currentTimeMillis() - speechStartTime;
+            }
+            return 0;
         }
 
         // 音频数据管理
@@ -598,6 +610,17 @@ public class VadService {
         synchronized (lock) {
             VadState state = states.get(sessionId);
             return state != null ? state.getFrameCounter() : 0;
+        }
+    }
+    
+    /**
+     * 获取当前语音输入的持续时间（毫秒）
+     */
+    public long getSpeechDuration(String sessionId) {
+        Object lock = getLock(sessionId);
+        synchronized (lock) {
+            VadState state = states.get(sessionId);
+            return state != null ? state.getSpeechDuration() : 0;
         }
     }
 

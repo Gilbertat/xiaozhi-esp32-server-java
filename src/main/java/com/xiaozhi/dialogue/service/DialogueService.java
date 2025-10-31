@@ -19,7 +19,7 @@ import com.xiaozhi.service.SysDeviceService;
 import com.xiaozhi.utils.AudioUtils;
 import com.xiaozhi.utils.EmojiUtils;
 import com.xiaozhi.utils.EmojiUtils.EmoSentence;
-import com.xiaozhi.utils.KoreanNumberConverter;
+import com.xiaozhi.utils.KoreanLanguageUtils;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +29,6 @@ import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.*;
@@ -388,8 +387,24 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
         Assert.notNull(session, "session不能为空");
         Thread.startVirtualThread(() -> {
             try {
-                // 如果正在播放，先中断音频
-                if (audioService.isPlaying(sessionId)) {
+                // 检查语音输入时长，只有超过2秒才允许打断当前播放的音频
+                long speechDuration = vadService.getSpeechDuration(sessionId); // 获取当前语音输入时长
+                logger.info("语音输入时长: {}ms, SessionId: {}", speechDuration, sessionId);
+                
+                if (audioService.isPlaying(sessionId) && speechDuration >= 2000) {
+                    // 如果正在播放且语音输入时长超过2秒，则打断当前播放
+                    logger.info("语音输入时长超过2秒，允许打断当前播放 - SessionId: {}, 时长: {}ms", sessionId, speechDuration);
+                    sentenceQueue.get(sessionId).clear();
+                    audioService.sendStop(session);
+                } else if (audioService.isPlaying(sessionId) && speechDuration < 2000) {
+                    // 如果正在播放但语音输入时长不足2秒，则不打断当前播放
+                    logger.info("语音输入时长不足2秒，不允许打断当前播放 - SessionId: {}, 时长: {}ms", sessionId, speechDuration);
+                    // 重置VAD会话状态，避免后续打断
+                    vadService.resetSession(sessionId);
+                    return;
+                } else if (audioService.isPlaying(sessionId)) {
+                    // 如果正在播放但无法获取语音时长，则按原逻辑处理
+                    logger.info("语音时长信息不可用，执行正常打断逻辑 - SessionId: {}", sessionId);
                     sentenceQueue.get(sessionId).clear();
                     audioService.sendStop(session);
                 }
@@ -522,7 +537,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
         // 累加完整回复内容
         if (text != null && !text.isEmpty()) {
             // 同时累加到对话ID对应的响应中
-            text = KoreanNumberConverter.convertNumberToKO(text);
+            text = KoreanLanguageUtils.convertNumberToKO(text);
             dialogueResponses.computeIfAbsent(assistantTimeMillis, k -> new StringBuilder()).append(text);
         }
 

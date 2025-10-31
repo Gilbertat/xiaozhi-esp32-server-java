@@ -2,7 +2,7 @@ package com.xiaozhi.dialogue.stt.providers;
 
 import com.xiaozhi.entity.SysConfig;
 import com.xiaozhi.utils.AudioUtils;
-import com.xiaozhi.utils.KoreanNumberConverter;
+import com.xiaozhi.utils.KoreanLanguageUtils;
 
 import okhttp3.*;
 import org.json.JSONObject;
@@ -72,14 +72,14 @@ public class OpenAIStreamSttEngine {
                 return "";
             }
 
-            // 构建请求体
+            // 构建请求体 - 先获取前几个词进行快速语言检测
             RequestBody requestBody = new MultipartBody.Builder()
                     .setType(MultipartBody.FORM)
                     .addFormDataPart("file", tempFile.getName(),
                             RequestBody.create(MediaType.parse("audio/wav"), tempFile))
                     .addFormDataPart("model", model)
                     .addFormDataPart("response_format", "json")
-                    .addFormDataPart("language", "ko")
+//                    .addFormDataPart("language", "ko")
                     .build();
 
             Request request = new Request.Builder()
@@ -101,7 +101,20 @@ public class OpenAIStreamSttEngine {
 
                 JSONObject json = new JSONObject(body);
                 String text = json.optString("text", "");
-                return KoreanNumberConverter.convertNumberToKO(text);
+                
+                // 如果API返回了语言信息，则检查语言
+                String detectedLanguage = json.optString("language", "unknown");
+                
+                // 根据检测到的语言或文本特征判断是否为韩语
+                boolean isKorean = isKoreanText(text) || "ko".equals(detectedLanguage) || isLikelyKorean(detectedLanguage);
+                
+                if (!isKorean) {
+                    logger.info("检测到的文本不是韩语 (检测语言: {}, 文本示例: {})，跳过处理", detectedLanguage, text.substring(0, Math.min(20, text.length())));
+                    return "";
+                }
+                
+                logger.info("确认为韩语，继续处理识别结果");
+                return KoreanLanguageUtils.convertNumberToKO(text);
 
             } catch (InterruptedIOException e) {
                 Thread.interrupted(); // 清除中断状态
@@ -205,7 +218,7 @@ public class OpenAIStreamSttEngine {
             }
 
             // 如果是原始PCM数据，转换为WAV格式
-            return AudioUtils.pcmToWav(audioData, AudioUtils.SAMPLE_RATE, 1, 16);
+            return AudioUtils.pcmToWav  (audioData, AudioUtils.SAMPLE_RATE, 1, 16);
         } catch (Exception e) {
             logger.warn("音频格式转换失败，使用原始数据", e);
             return audioData;
@@ -224,6 +237,42 @@ public class OpenAIStreamSttEngine {
                 audioData[2] == 'F' && audioData[3] == 'F' &&
                 audioData[8] == 'W' && audioData[9] == 'A' &&
                 audioData[10] == 'V' && audioData[11] == 'E';
+    }
+    
+    /**
+     * 判断检测到的语言是否可能是韩语（处理检测不准确的情况）
+     */
+    private boolean isLikelyKorean(String detectedLanguage) {
+        // 有些方言或口音可能被误识别为相近语言，这里可以添加处理逻辑
+        return "ko".equals(detectedLanguage) || // 韩语
+               "korean".equals(detectedLanguage); // 一些API可能返回完整名称
+    }
+    
+    /**
+     * 检查文本是否为韩语（基于韩文字母的特征）
+     */
+    private boolean isKoreanText(String text) {
+        if (text == null || text.trim().isEmpty()) {
+            return false;
+        }
+        
+        // 韩文字符的Unicode范围是 \uAC00-\uD7AF (韩文音节) 和 \u1100-\u11FF (韩文字母)
+        int koreanCharCount = 0;
+        int totalCharCount = 0;
+        
+        for (char c : text.toCharArray()) {
+            // 忽略空格和标点符号
+            if (Character.isLetterOrDigit(c)) {
+                totalCharCount++;
+                if ((c >= 0xAC00 && c <= 0xD7AF) ||  // 韩文音节
+                    (c >= 0x1100 && c <= 0x11FF)) {  // 韩文字母
+                    koreanCharCount++;
+                }
+            }
+        }
+        
+        // 如果韩文字符占比超过一定阈值（例如50%），则认为是韩语文本
+        return totalCharCount > 0 && (double) koreanCharCount / totalCharCount > 0.5;
     }
 }
 

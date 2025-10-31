@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
  * @author shiyue
  * @version 1.0 2025/9/13 23:00
  */
-public class KoreanNumberConverter {
+public class KoreanLanguageUtils {
     private static final String[] UNITS = {"", "십", "백", "천"};
     private static final String[] DIGITS = {"", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"};
 
@@ -47,10 +47,23 @@ public class KoreanNumberConverter {
         StringBuilder sb = new StringBuilder();
         while (matcher.find()) {
             String numberStr = matcher.group();
-            String koreanNumber = KoreanNumberConverter.toKorean(Long.parseLong(numberStr));
+            String koreanNumber = KoreanLanguageUtils.toKorean(Long.parseLong(numberStr));
             matcher.appendReplacement(sb, koreanNumber);
         }
         matcher.appendTail(sb);
         return sb.toString();
+    }
+
+    /**
+     * 计算文本中韩文字（Hangul）比例
+     */
+    private double calculateHangulRatio(String text) {
+        if (text == null || text.isEmpty()) return 0.0;
+        long hangulCount = text.chars()
+                .filter(ch -> (ch >= 0xAC00 && ch <= 0xD7AF) || // 现代韩文
+                        (ch >= 0x1100 && ch <= 0x11FF) || // 자모
+                        (ch >= 0x3130 && ch <= 0x318F))   // 兼容区
+                .count();
+        return (double) hangulCount / text.length();
     }
 }
