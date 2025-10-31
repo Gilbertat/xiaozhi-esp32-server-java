@@ -353,12 +353,13 @@ public class VadService {
                 float[] samples = bytesToFloats(pcmData);
                 float energy = calcEnergy(samples);
                 state.updateEnergy(energy);
-                
-                // 获取VAD概率并乘以10（部分设备收音效果不好，这是一个奇怪但是很有效的解决方法。。。）
-                float speechProb = detectSpeech(samples) * 10;
-                
+
+                // 原始VAD概率
+                float speechProb = detectSpeech(samples);
                 // 限制概率范围在[0,1]
                 speechProb = Math.min(1.0f, speechProb);
+                
+
                 
                 // 添加到原始概率列表
                 state.addOriginalProb(speechProb);
