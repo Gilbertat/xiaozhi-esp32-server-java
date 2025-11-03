@@ -17,6 +17,7 @@ import java.net.*;
 import java.time.Duration;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 public class OpenAIStreamSttEngine {
 
@@ -26,8 +27,10 @@ public class OpenAIStreamSttEngine {
     private final String apiPath;
     private final String apiKey;
     private final String model;
-
     private final OkHttpClient httpClient;
+
+    // ✅ 缓存上次检测语言，减少重复调用 Python
+    private String cachedLanguage = null;
 
     public OpenAIStreamSttEngine(SysConfig sysConfig) {
         this.baseUrl = sysConfig.getBaseUrl();
@@ -42,13 +45,13 @@ public class OpenAIStreamSttEngine {
     }
 
     /**
-     * 主识别逻辑 - 仅对韩语进行响应
+     * 主识别逻辑 - 仅响应韩语
      */
     public String recognition(byte[] audioData) {
         File tempFile = null;
         try {
             if (audioData == null || audioData.length == 0) {
-                logger.error("recognition: 输入的音频数据为空");
+                logger.error("recognition: 输入音频数据为空");
                 return "";
             }
 
@@ -58,185 +61,48 @@ public class OpenAIStreamSttEngine {
                 return "";
             }
 
-            // 策略1: 同时进行自动检测和韩语强制识别
-            File finalTempFile = tempFile;
-            CompletableFuture<String> autoDetectFuture = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return doRecognition(finalTempFile, false, model);
-                } catch (Exception e) {
-                    logger.error("自动检测识别失败: {}", e.getMessage());
-                    return "";
-                }
-            });
+            // ✅ 使用 Whisper Python 检测语言（仅第一次）
+            if (cachedLanguage == null) {
+                cachedLanguage = detectLanguageWithPython(tempFile);
+                logger.info("Whisper语言检测结果: {}", cachedLanguage);
+            }
 
-            File finalTempFile1 = tempFile;
-            CompletableFuture<String> koreanForcedFuture = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return doRecognition(finalTempFile1, true, model);
-                } catch (Exception e) {
-                    logger.error("韩语强制识别失败: {}", e.getMessage());
-                    return "";
-                }
-            });
+            // ✅ 若检测结果不是韩语，则直接忽略
+            if (!"ko".equalsIgnoreCase(cachedLanguage)) {
+                logger.info("非韩语语音（检测结果：{}），忽略此次识别", cachedLanguage);
+                return "";
+            }
 
-            // 等待两个结果
-            String autoDetectResult = autoDetectFuture.get(10, TimeUnit.SECONDS);
-            String koreanForcedResult = koreanForcedFuture.get(10, TimeUnit.SECONDS);
+            // ✅ 执行主识别（韩语）
+            String mainResult = doRecognition(tempFile, true, model);
 
-            // 分析结果并决定最终输出
-            return analyzeAndDecideResult(autoDetectResult, koreanForcedResult, tempFile);
+            // 若主识别失败，执行回退
+            if (mainResult.isEmpty()) {
+                logger.warn("主模型识别失败，尝试 Whisper 回退模型");
+                mainResult = tryFallbackWhisper(tempFile);
+            }
 
-        } catch (TimeoutException e) {
-            logger.error("识别超时");
-            return "";
+            if (mainResult.isEmpty()) {
+                logger.warn("所有识别尝试均失败");
+                return "";
+            }
+
+            JSONObject json = new JSONObject(mainResult);
+            String text = json.optString("text", "").trim();
+
+            if (isKoreanText(text)) {
+                logger.info("✅ 韩语识别成功: {}", text);
+                return KoreanLanguageUtils.convertNumberToKO(text);
+            } else {
+                logger.debug("识别结果非韩语内容，丢弃: {}", text);
+                return "";
+            }
+
         } catch (Exception e) {
             logger.error("STT 识别异常: {}", e.getMessage(), e);
             return "";
         } finally {
-            if (tempFile != null && tempFile.exists()) {
-                tempFile.delete();
-            }
-        }
-    }
-
-    /**
-     * 分析两个识别结果并决定最终输出
-     */
-    private String analyzeAndDecideResult(String autoDetectResult, String koreanForcedResult, File tempFile) {
-        // 解析两个结果
-        JSONObject autoJson = parseResult(autoDetectResult);
-        JSONObject koreanJson = parseResult(koreanForcedResult);
-
-        String autoText = autoJson.optString("text", "").trim();
-        String autoLanguage = autoJson.optString("language", "unknown");
-        String koreanText = koreanJson.optString("text", "").trim();
-
-        logger.info("识别结果分析 - 自动检测: [语言: {}, 文本: {}], 韩语强制: [文本: {}]",
-                autoLanguage,
-                autoText.substring(0, Math.min(20, autoText.length())) + "...",
-                koreanText.substring(0, Math.min(20, koreanText.length())) + "...");
-
-        // 情况1: 自动检测明确是韩语
-        if (isKoreanLanguage(autoLanguage, autoText)) {
-            logger.info("自动检测确认为韩语，使用自动检测结果");
-            return KoreanLanguageUtils.convertNumberToKO(autoText);
-        }
-
-        // 情况2: 自动检测不是韩语，但韩语强制识别产生了有意义的文本
-        if (isMeaningfulKoreanText(koreanText) && !koreanText.equals(autoText)) {
-            // 检查韩语强制识别结果的质量
-            double koreanConfidence = calculateKoreanConfidence(koreanText);
-            if (koreanConfidence > 0.7) {
-                logger.info("韩语强制识别产生高质量结果，置信度: {:.2f}", koreanConfidence);
-                return KoreanLanguageUtils.convertNumberToKO(koreanText);
-            }
-        }
-
-        // 情况3: 两个结果都失败，尝试Whisper回退
-        if (autoText.isEmpty() && koreanText.isEmpty()) {
-            logger.info("两个识别结果都为空，尝试Whisper回退");
-            return tryFallbackWhisper(tempFile);
-        }
-
-        // 情况4: 自动检测不是韩语，且韩语强制识别结果不理想
-        logger.info("未检测到有效的韩语内容，自动检测语言: {}", autoLanguage);
-        return "";
-    }
-
-    /**
-     * 解析识别结果
-     */
-    private JSONObject parseResult(String result) {
-        if (result == null || result.isEmpty()) {
-            return new JSONObject();
-        }
-        try {
-            return new JSONObject(result);
-        } catch (Exception e) {
-            logger.error("解析识别结果失败: {}", e.getMessage());
-            return new JSONObject();
-        }
-    }
-
-    /**
-     * 检查是否为有意义的韩语文本
-     */
-    private boolean isMeaningfulKoreanText(String text) {
-        if (text == null || text.trim().isEmpty()) {
-            return false;
-        }
-
-        // 检查文本长度
-        if (text.length() < 2) {
-            return false;
-        }
-
-        // 检查韩文字符比例
-        return calculateKoreanConfidence(text) > 0.3;
-    }
-
-    /**
-     * 计算韩语置信度
-     */
-    private double calculateKoreanConfidence(String text) {
-        if (text == null || text.trim().isEmpty()) {
-            return 0.0;
-        }
-
-        int koreanCharCount = 0;
-        int totalCharCount = 0;
-
-        for (char c : text.toCharArray()) {
-            if (Character.isLetter(c)) {
-                totalCharCount++;
-                // 韩文字符范围
-                if ((c >= 0xAC00 && c <= 0xD7AF) ||
-                        (c >= 0x1100 && c <= 0x11FF)) {
-                    koreanCharCount++;
-                }
-            }
-        }
-
-        if (totalCharCount == 0) {
-            return 0.0;
-        }
-
-        return (double) koreanCharCount / totalCharCount;
-    }
-
-    /**
-     * whisper-large-v3 回退机制
-     */
-    private String tryFallbackWhisper(File audioFile) {
-        try {
-            String fallbackModel = "whisper-large-v3";
-            logger.info("开始使用回退模型: {}", fallbackModel);
-
-            // 同时尝试两种模式
-            CompletableFuture<String> autoFuture = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return doRecognition(audioFile, false, fallbackModel);
-                } catch (Exception e) {
-                    return "";
-                }
-            });
-
-            CompletableFuture<String> koreanFuture = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return doRecognition(audioFile, true, fallbackModel);
-                } catch (Exception e) {
-                    return "";
-                }
-            });
-
-            String autoResult = autoFuture.get(10, TimeUnit.SECONDS);
-            String koreanResult = koreanFuture.get(10, TimeUnit.SECONDS);
-
-            return analyzeAndDecideResult(autoResult, koreanResult, audioFile);
-
-        } catch (Exception e) {
-            logger.error("Whisper 回退识别失败: {}", e.getMessage());
-            return "";
+            if (tempFile != null && tempFile.exists()) tempFile.delete();
         }
     }
 
@@ -271,10 +137,94 @@ public class OpenAIStreamSttEngine {
     }
 
     /**
+     * whisper-large-v3 回退
+     */
+    private String tryFallbackWhisper(File audioFile) {
+        try {
+            String fallbackModel = "whisper-large-v3";
+            logger.info("使用回退模型: {}", fallbackModel);
+            return doRecognition(audioFile, true, fallbackModel);
+        } catch (Exception e) {
+            logger.error("Whisper 回退识别失败: {}", e.getMessage());
+            return "";
+        }
+    }
+
+    /**
+     * 调用 Python 脚本进行 Whisper 语言检测
+     */
+    private String detectLanguageWithPython(File audioFile) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder(
+                    "python3", "detect_lang.py", audioFile.getAbsolutePath());
+            pb.redirectErrorStream(true);
+
+            Process process = pb.start();
+            String output;
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                output = reader.lines().collect(Collectors.joining()).trim();
+            }
+
+            int exitCode = process.waitFor();
+            if (exitCode != 0 || output.isEmpty()) {
+                logger.warn("语言检测失败，返回unknown");
+                return "unknown";
+            }
+
+            logger.info("检测到语言: {}", output);
+            return output;
+
+        } catch (Exception e) {
+            logger.error("调用 Python 语言检测失败: {}", e.getMessage());
+            return "unknown";
+        }
+    }
+
+    /**
+     * 简单检测文本是否为韩语
+     */
+    private boolean isKoreanText(String text) {
+        if (text == null || text.isEmpty()) return false;
+        long koreanChars = text.chars().filter(c -> c >= 0xAC00 && c <= 0xD7AF).count();
+        double ratio = (double) koreanChars / text.length();
+        return ratio >= 0.6;
+    }
+
+    /**
+     * 创建临时音频文件
+     */
+    private File createTempAudioFile(byte[] audioData) throws IOException {
+        byte[] wavData = ensureWavFormat(audioData);
+        File tempFile = File.createTempFile("openai_stt_", ".wav");
+        try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+            fos.write(wavData);
+        }
+        return tempFile;
+    }
+
+    private byte[] ensureWavFormat(byte[] audioData) {
+        try {
+            if (isWavFormat(audioData)) return audioData;
+            return AudioUtils.pcmToWav(audioData, AudioUtils.SAMPLE_RATE, 1, 16);
+        } catch (Exception e) {
+            logger.warn("音频格式转换失败，使用原始数据", e);
+            return audioData;
+        }
+    }
+
+    private boolean isWavFormat(byte[] audioData) {
+        if (audioData.length < 12) return false;
+        return audioData[0] == 'R' && audioData[1] == 'I' &&
+                audioData[2] == 'F' && audioData[3] == 'F' &&
+                audioData[8] == 'W' && audioData[9] == 'A' &&
+                audioData[10] == 'V' && audioData[11] == 'E';
+    }
+
+    /**
      * 流式识别
      */
     public String streamRecognition(Sinks.Many<byte[]> audioSink, java.util.function.Consumer<String> onPartial) {
-        logger.info("OpenAI STT: 开始韩语专用流式语音识别");
+        logger.info("🔊 开始韩语专用流式语音识别");
 
         StringBuilder finalResult = new StringBuilder();
         AtomicBoolean active = new AtomicBoolean(true);
@@ -319,68 +269,16 @@ public class OpenAIStreamSttEngine {
                     })
                     .doFinally(sig -> {
                         active.set(false);
-                        logger.info("韩语语音流结束: {}", sig);
+                        cachedLanguage = null; // ✅ 重置语言缓存
+                        logger.info("语音流结束: {}", sig);
                     })
                     .blockLast();
 
-            return finalResult.toString().trim();
+            return KoreanLanguageUtils.convertNumberToKO(finalResult.toString().trim());
 
         } catch (Exception e) {
             logger.error("OpenAI 韩语流式语音识别失败: {}", e.getMessage(), e);
             return "";
         }
-    }
-
-    private File createTempAudioFile(byte[] audioData) throws IOException {
-        byte[] wavData = ensureWavFormat(audioData);
-        File tempFile = File.createTempFile("openai_stt_", ".wav");
-        try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-            fos.write(wavData);
-        }
-        return tempFile;
-    }
-
-    private byte[] ensureWavFormat(byte[] audioData) {
-        try {
-            if (isWavFormat(audioData)) return audioData;
-            return AudioUtils.pcmToWav(audioData, AudioUtils.SAMPLE_RATE, 1, 16);
-        } catch (Exception e) {
-            logger.warn("音频格式转换失败，使用原始数据", e);
-            return audioData;
-        }
-    }
-
-    private boolean isWavFormat(byte[] audioData) {
-        if (audioData.length < 12) return false;
-        return audioData[0] == 'R' && audioData[1] == 'I' &&
-                audioData[2] == 'F' && audioData[3] == 'F' &&
-                audioData[8] == 'W' && audioData[9] == 'A' &&
-                audioData[10] == 'V' && audioData[11] == 'E';
-    }
-
-    /**
-     * 综合判断是否为韩语
-     */
-    private boolean isKoreanLanguage(String detectedLanguage, String text) {
-        // 检查API返回的语言代码
-        boolean byLanguageCode = isLikelyKoreanByCode(detectedLanguage);
-
-        // 检查文本内容中的韩文字符
-        boolean byTextContent = calculateKoreanConfidence(text) > 0.4;
-
-        logger.debug("韩语验证 - 语言代码: {} -> {}, 文本内容: {}",
-                detectedLanguage, byLanguageCode, byTextContent);
-
-        return byLanguageCode && byTextContent;
-    }
-
-    /**
-     * 通过语言代码判断是否为韩语
-     */
-    private boolean isLikelyKoreanByCode(String detectedLanguage) {
-        return "ko".equalsIgnoreCase(detectedLanguage) ||
-                "korean".equalsIgnoreCase(detectedLanguage) ||
-                "kr".equalsIgnoreCase(detectedLanguage) ||
-                "kor".equalsIgnoreCase(detectedLanguage);
     }
 }
