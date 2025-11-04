@@ -170,11 +170,6 @@ public class ChatModelFactory {
 //        headers.add("Content-Type", "application/json");
         String completionsPath = "/v1/chat/completions";
         // Realtime配置降级为普通OpenAI Chat API，因为ChatModel不支持WebSocket
-        if ("realtime".equals(configType)) {
-            logger.warn("Realtime configuration detected in ChatModel creation. Using standard OpenAI API instead. " +
-                       "For true realtime functionality, use RealtimeService directly.");
-            // 继续使用标准的chat/completions端点
-        }
         var openAiApi = buildOpenAIModel(endpoint, apiKey, headers, completionsPath);
         var openAiChatOptions = OpenAiChatOptions.builder()
                 .model(model)

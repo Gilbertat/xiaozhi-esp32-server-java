@@ -7,6 +7,7 @@ import com.xiaozhi.entity.SysRole;
 import com.xiaozhi.service.SysRoleService;
 import com.xiaozhi.utils.OpusProcessor;
 
+import io.github.jaredmdobson.concentus.OpusException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -30,7 +30,7 @@ public class WebSocketSession extends ChatSession {
     }
 
     public org.springframework.web.socket.WebSocketSession getSession() {
-        return null;
+        return session;
     }
 
     @Override

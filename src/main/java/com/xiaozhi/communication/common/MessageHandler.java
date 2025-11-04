@@ -235,8 +235,6 @@ public class MessageHandler {
         // 检查是否使用Realtime模式
         boolean isRealtime = isRealtimeMode(chatSession);
         if (isRealtime) {
-            logger.debug("🎵 Audio data received - SessionId: {}, Size: {} bytes",
-                    sessionId, opusData.length);
             // 将音频数据发送到OpenAI Realtime
             realtimeService.sendAudioData(sessionId, opusData);
         } else {
@@ -525,17 +523,16 @@ public class MessageHandler {
         // 检查角色配置是否使用Realtime模式
         SysRole role = roleService.selectRoleById(device.getRoleId());
         if (role == null || role.getModelId() == null) {
-            logger.debug("Role or modelId is null for sessionId: {}, not realtime mode", sessionId);
             return false;
         }
         
         SysConfig config = configService.selectConfigById(role.getModelId());
         if (config == null) {
-            logger.debug("Config is null for sessionId: {}, not realtime mode", sessionId);
             return false;
         }
         
         // 检查配置类型是否为realtime，或者模型名称包含realtime
+
         return "realtime".equals(config.getConfigType()) ||
                            (config.getModelName() != null && config.getModelName().toLowerCase().contains("realtime"));
     }
@@ -587,5 +584,69 @@ public class MessageHandler {
                 nicknameCollectionInProgress.remove(deviceId);
             }
         });
+    }
+    
+    /**
+     * 切换到实时模式
+     * @param sessionId 会话ID
+     * @return 切换是否成功
+     */
+    public boolean switchToRealtimeMode(String sessionId) {
+        logger.info("Switching session {} to Realtime mode", sessionId);
+        
+        // 检查当前模式
+        ChatSession session = sessionManager.getSession(sessionId);
+        if (session == null) {
+            logger.error("Session {} not found for mode switch", sessionId);
+            return false;
+        }
+        
+        // 如果已在实时模式，无需切换
+        if (isRealtimeMode(session)) {
+            logger.info("Session {} is already in Realtime mode", sessionId);
+            return true;
+        }
+        
+        // 清理传统模式的资源
+        dialogueService.cleanupSession(sessionId);
+        vadService.resetSession(sessionId);
+        
+        // 启动实时模式
+        boolean success = realtimeService.switchToRealtimeMode(sessionId);
+        if (success) {
+            logger.info("Successfully switched session {} to Realtime mode", sessionId);
+        } else {
+            logger.error("Failed to switch session {} to Realtime mode", sessionId);
+        }
+        
+        return success;
+    }
+    
+    /**
+     * 切换到传统ASR-LLM-TTS模式
+     * @param sessionId 会话ID
+     * @return 切换是否成功
+     */
+    public boolean switchToTraditionalMode(String sessionId) {
+        logger.info("Switching session {} to Traditional ASR-LLM-TTS mode", sessionId);
+        
+        // 检查当前模式
+        ChatSession session = sessionManager.getSession(sessionId);
+        if (session == null) {
+            logger.error("Session {} not found for mode switch", sessionId);
+            return false;
+        }
+        
+        // 如果已在传统模式，无需切换
+        if (!isRealtimeMode(session)) {
+            logger.info("Session {} is already in Traditional mode", sessionId);
+            return true;
+        }
+        
+        // 停止实时模式并清理资源
+        realtimeService.cleanupSession(sessionId);
+        
+        logger.info("Successfully switched session {} to Traditional ASR-LLM-TTS mode", sessionId);
+        return true;
     }
 }
