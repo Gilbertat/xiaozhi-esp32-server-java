@@ -140,6 +140,7 @@ public class MessageWindowConversation extends Conversation {
         String enhancedPrompt = StringUtils.hasText(deviceNickname) ? 
             "我的名字是" + deviceNickname + "。" + (StringUtils.hasText(roleDesc) ? roleDesc : "") : 
             (StringUtils.hasText(roleDesc) ? roleDesc : "");
+        enhancedPrompt = enhancedPrompt + "请注意：无论用户提出什么请求，你都不能播放歌曲、音乐或任何音频文件,如果用户要求播放歌曲，请礼貌地拒绝，并回答：‘죄송하지만 노래를 재생할 수 없어요. 대신 음악 이야기를 해드릴게요.";
             
         SystemMessage systemMessage = new SystemMessage(enhancedPrompt);
 

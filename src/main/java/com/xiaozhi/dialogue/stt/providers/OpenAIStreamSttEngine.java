@@ -17,6 +17,7 @@ import java.net.*;
 import java.time.Duration;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class OpenAIStreamSttEngine {
@@ -61,41 +62,39 @@ public class OpenAIStreamSttEngine {
                 return "";
             }
 
-            // ✅ 使用 Whisper Python 检测语言（仅第一次）
-            if (cachedLanguage == null) {
-                cachedLanguage = detectLanguageWithPython(tempFile);
-                logger.info("Whisper语言检测结果: {}", cachedLanguage);
-            }
-
-            // ✅ 若检测结果不是韩语，则直接忽略
-            if (!"ko".equalsIgnoreCase(cachedLanguage)) {
-                logger.info("非韩语语音（检测结果：{}），忽略此次识别", cachedLanguage);
-                return "";
-            }
+//            // ✅ 使用 Whisper Python 检测语言（仅第一次）
+//            if (cachedLanguage == null) {
+//                cachedLanguage = detectLanguageWithPython(tempFile);
+//                logger.info("Whisper语言检测结果: {}", cachedLanguage);
+//            }
+//
+//            // ✅ 若检测结果不是韩语，则直接忽略
+//            if (!"ko".equalsIgnoreCase(cachedLanguage)) {
+//                logger.info("非韩语语音（检测结果：{}），忽略此次识别", cachedLanguage);
+//                return "";
+//            }
 
             // ✅ 执行主识别（韩语）
             String mainResult = doRecognition(tempFile, true, model);
 
-            // 若主识别失败，执行回退
-            if (mainResult.isEmpty()) {
-                logger.warn("主模型识别失败，尝试 Whisper 回退模型");
-                mainResult = tryFallbackWhisper(tempFile);
-            }
-
-            if (mainResult.isEmpty()) {
-                logger.warn("所有识别尝试均失败");
-                return "";
-            }
+//            // 若主识别失败，执行回退
+//            if (mainResult.isEmpty()) {
+//                logger.warn("主模型识别失败，尝试 Whisper 回退模型");
+//                mainResult = tryFallbackWhisper(tempFile);
+//            }
+//
+//            if (mainResult.isEmpty()) {
+//                logger.warn("所有识别尝试均失败");
+//                return "";
+//            }
 
             JSONObject json = new JSONObject(mainResult);
             String text = json.optString("text", "").trim();
-
+            logger.info("✅ 识别成功: {}", text);
             if (isKoreanText(text)) {
-                logger.info("✅ 韩语识别成功: {}", text);
                 return KoreanLanguageUtils.convertNumberToKO(text);
             } else {
-                logger.debug("识别结果非韩语内容，丢弃: {}", text);
-                return "";
+                return text;
             }
 
         } catch (Exception e) {
@@ -118,7 +117,7 @@ public class OpenAIStreamSttEngine {
                 .addFormDataPart("response_format", "json");
 
         if (forceKorean) {
-            builder.addFormDataPart("language", "ko");
+            builder.addFormDataPart("prompt", "The audio is in Korean. Please transcribe accurately with proper spacing.");
         }
 
         Request request = new Request.Builder()
@@ -223,8 +222,8 @@ public class OpenAIStreamSttEngine {
     /**
      * 流式识别
      */
-    public String streamRecognition(Sinks.Many<byte[]> audioSink, java.util.function.Consumer<String> onPartial) {
-        logger.info("🔊 开始韩语专用流式语音识别");
+    public String streamRecognition(Sinks.Many<byte[]> audioSink, Consumer<String> onPartial) {
+        logger.info("🔊 开始流式语音识别");
 
         StringBuilder finalResult = new StringBuilder();
         AtomicBoolean active = new AtomicBoolean(true);
@@ -264,7 +263,7 @@ public class OpenAIStreamSttEngine {
                     .doOnNext(t -> {
                         if (!t.isEmpty()) {
                             finalResult.append(t).append(" ");
-                            logger.info("韩语部分识别结果: {}", t);
+                            logger.info("语音部分识别结果: {}", t);
                         }
                     })
                     .doFinally(sig -> {

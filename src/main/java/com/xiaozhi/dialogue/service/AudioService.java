@@ -235,10 +235,9 @@ public class AudioService {
 
         // 处理音频文件
         return emotionFuture.thenCompose(v -> CompletableFuture.supplyAsync(() -> {
-            String fullPath = audioPath;
-            File audioFile = new File(fullPath);
+            File audioFile = new File(audioPath);
             if (!audioFile.exists()) {
-                logger.warn("音频文件不存在: {}", fullPath);
+                logger.warn("音频文件不存在: {}", audioPath);
                 return null;
             }
 
@@ -250,13 +249,13 @@ public class AudioService {
                     opusFrames = opusProcessor.readOpus(audioFile);
                 } else {
                     // 如果不是opus文件，按照原来的逻辑处理
-                    byte[] audioData = AudioUtils.readAsPcm(fullPath);
+                    byte[] audioData = AudioUtils.readAsPcm(audioPath);
                     // 将PCM转换为Opus帧
                     opusFrames = opusProcessor.pcmToOpus(sessionId, audioData, false);
                 }
                 return opusFrames;
             } catch (Exception e) {
-                logger.error("处理音频文件失败: {}", fullPath, e);
+                logger.error("处理音频文件失败: {}", audioPath, e);
                 return null;
             }
         })).thenCompose(opusFrames -> {
