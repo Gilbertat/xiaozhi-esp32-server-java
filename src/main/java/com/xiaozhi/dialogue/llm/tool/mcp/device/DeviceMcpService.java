@@ -195,19 +195,90 @@ public class DeviceMcpService {
     }
 
     public DeviceMcpMessage sendMcpRequest(ChatSession chatSession, DeviceMcpMessage mcpMessage) {
-        Long id = mcpMessage.getPayload().getId();
-        CompletableFuture<DeviceMcpMessage> future = new CompletableFuture<>();
-        chatSession.sendTextMessage(JsonUtil.toJson(mcpMessage));
-        chatSession.getDeviceMcpHolder().getMcpPendingRequests().put(id, future);
+        return sendMcpRequestWithRetry(chatSession, mcpMessage);
+    }
 
+    /**
+     * 发送MCP请求（带重试机制）
+     */
+    private DeviceMcpMessage sendMcpRequestWithRetry(ChatSession chatSession, DeviceMcpMessage mcpMessage) {
+        final int maxRetries = 3; // 最多重试3次，总共4次尝试
+        Long originalId = mcpMessage.getPayload().getId();
         DeviceMcpMessage response = null;
-        try {
-            // 阻塞并等待异步操作完成
-            response = future.get(30, TimeUnit.SECONDS);//等待2秒，没反应则退出
-        } catch (Exception e) {
-            logger.error("SessionId: {}, Error sending MCP request", chatSession.getSessionId(), e);
-            chatSession.getDeviceMcpHolder().getMcpPendingRequests().remove(id);
+
+        for (int attempt = 1; attempt <= maxRetries + 1; attempt++) {
+            // 为每次重试创建新的唯一ID，避免重复ID导致的资源混乱
+            Long currentId = originalId + attempt;
+            CompletableFuture<DeviceMcpMessage> future = new CompletableFuture<>();
+
+            // 先清理可能存在的旧future（使用当前ID）
+            CompletableFuture<DeviceMcpMessage> oldFuture = chatSession.getDeviceMcpHolder().getMcpPendingRequests().remove(currentId);
+            if (oldFuture != null) {
+                // 如果存在旧的future，先完成它避免内存泄漏
+                oldFuture.completeExceptionally(new IllegalStateException("Replaced by retry attempt " + attempt));
+            }
+
+            // 使用新的ID注册future
+            chatSession.getDeviceMcpHolder().getMcpPendingRequests().put(currentId, future);
+
+            // 更新消息的ID为当前重试使用的ID
+            mcpMessage.getPayload().setId(currentId);
+
+            try {
+                // 检查WebSocket连接状态
+                if (!chatSession.isOpen()) {
+                    logger.warn("SessionId: {}, WebSocket连接已断开，跳过MCP请求", chatSession.getSessionId());
+                    // 清理当前future
+                    future.completeExceptionally(new IllegalStateException("WebSocket disconnected"));
+                    chatSession.getDeviceMcpHolder().getMcpPendingRequests().remove(currentId);
+                    break;
+                }
+
+                // 发送消息
+                String messageJson = JsonUtil.toJson(mcpMessage);
+                chatSession.sendTextMessage(messageJson);
+
+                // 缩短超时时间到3秒
+                response = future.get(3, TimeUnit.SECONDS);
+
+                // 成功获取响应，清除pending请求并返回
+                chatSession.getDeviceMcpHolder().getMcpPendingRequests().remove(currentId);
+                return response;
+
+            } catch (java.util.concurrent.TimeoutException e) {
+                logger.warn("SessionId: {}, MCP request timeout (attempt {}/{}), method: {}, id: {}",
+                    chatSession.getSessionId(), attempt, maxRetries + 1, mcpMessage.getPayload().getMethod(), currentId);
+
+                // 超时后确保future被完成，避免内存泄漏
+                future.completeExceptionally(e);
+                chatSession.getDeviceMcpHolder().getMcpPendingRequests().remove(currentId);
+
+                // 如果不是最后一次尝试，则等待后重试
+                if (attempt <= maxRetries) {
+                    try {
+                        Thread.sleep(500); // 等待500ms后重试
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        logger.error("SessionId: {}, Retry interrupted", chatSession.getSessionId(), ie);
+                        break;
+                    }
+                }
+            } catch (Exception e) {
+                logger.error("SessionId: {}, Error sending MCP request (attempt {}/{}), method: {}, id: {}",
+                    chatSession.getSessionId(), attempt, maxRetries + 1, mcpMessage.getPayload().getMethod(), currentId, e);
+
+                // 确保future被完成
+                future.completeExceptionally(e);
+                chatSession.getDeviceMcpHolder().getMcpPendingRequests().remove(currentId);
+                break;
+            }
         }
+
+        if (response == null) {
+            logger.error("SessionId: {}, MCP request failed after {} attempts, method: {}, originalId: {}",
+                chatSession.getSessionId(), maxRetries + 1, mcpMessage.getPayload().getMethod(), originalId);
+        }
+
         return response;
     }
 
