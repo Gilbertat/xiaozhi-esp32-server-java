@@ -39,7 +39,7 @@ public class AudioService {
     private static final long OPUS_FRAME_SEND_INTERVAL_MS = AudioUtils.OPUS_FRAME_DURATION_MS;
     
     // 预缓冲帧数量
-    private static final int PRE_BUFFER_FRAMES = 3;
+    private static final int PRE_BUFFER_FRAMES = 1;
 
     // 仅播放文本的 Sleep 时长
     private static final long ONLY_TEXT_SLEEP_TIME_MS = 1000;
@@ -346,10 +346,10 @@ public class AudioService {
         }).whenComplete((result, error) -> {
             // 无论成功还是失败，都标记播放结束
             finalPlayingState.set(false);
-            
+
             // 取消调度任务
             cancelScheduledTask(sessionId);
-            
+
             // 清理播放时间信息
             cleanTimers(sessionId);
         }).thenCompose(v -> {
