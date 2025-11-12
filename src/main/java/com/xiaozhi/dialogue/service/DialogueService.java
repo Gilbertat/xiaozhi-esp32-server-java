@@ -290,7 +290,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
         try {
             String sessionId = session.getSessionId();
 //            logger.info("处理音频数据 - SessionId: {}, 音频大小: {} bytes", sessionId, opusData.length);
-            
+
             SysDevice device = session.getSysDevice();
             // 如果设备未注册或未绑定，忽略音频数据
             if (device == null || ObjectUtils.isEmpty(device.getRoleId())) {
@@ -336,7 +336,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
                         sessionManager.completeAudioStream(sessionId);
                         sessionManager.setStreamingState(sessionId, false);
                     }
-                    
+
                     // 检查是否处于昵称收集状态
 //                    boolean isNicknameCollection = sessionManager.isNicknameCollectionState(sessionId);
 //                    logger.info("检查昵称收集状态 - SessionId: {}, 是否处于昵称收集状态: {}", sessionId, isNicknameCollection);
@@ -388,26 +388,26 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
         Thread.startVirtualThread(() -> {
             try {
                 // 检查语音输入时长，只有超过2秒才允许打断当前播放的音频
-                long speechDuration = vadService.getSpeechDuration(sessionId); // 获取当前语音输入时长
-                logger.info("语音输入时长: {}ms, SessionId: {}", speechDuration, sessionId);
-                
-                if (audioService.isPlaying(sessionId) && speechDuration >= 2000) {
-                    // 如果正在播放且语音输入时长超过2秒，则打断当前播放
-                    logger.info("语音输入时长超过2秒，允许打断当前播放 - SessionId: {}, 时长: {}ms", sessionId, speechDuration);
-                    sentenceQueue.get(sessionId).clear();
-                    audioService.sendStop(session);
-                } else if (audioService.isPlaying(sessionId) && speechDuration < 2000) {
-                    // 如果正在播放但语音输入时长不足2秒，则不打断当前播放
-                    logger.info("语音输入时长不足2秒，不允许打断当前播放 - SessionId: {}, 时长: {}ms", sessionId, speechDuration);
-                    // 重置VAD会话状态，避免后续打断
-                    vadService.resetSession(sessionId);
-                    return;
-                } else if (audioService.isPlaying(sessionId)) {
-                    // 如果正在播放但无法获取语音时长，则按原逻辑处理
-                    logger.info("语音时长信息不可用，执行正常打断逻辑 - SessionId: {}", sessionId);
-                    sentenceQueue.get(sessionId).clear();
-                    audioService.sendStop(session);
-                }
+//                long speechDuration = vadService.getSpeechDuration(sessionId); // 获取当前语音输入时长
+//                logger.info("语音输入时长: {}ms, SessionId: {}", speechDuration, sessionId);
+
+//                if (audioService.isPlaying(sessionId) && speechDuration >= 2000) {
+                // 如果正在播放且语音输入时长超过2秒，则打断当前播放
+//                    logger.info("语音输入时长超过2秒，允许打断当前播放 - SessionId: {}, 时长: {}ms", sessionId, speechDuration);
+//                    sentenceQueue.get(sessionId).clear();
+//                    audioService.sendStop(session);
+//                } else if (audioService.isPlaying(sessionId) && speechDuration < 2000) {
+                // 如果正在播放但语音输入时长不足2秒，则不打断当前播放
+//                    logger.info("语音输入时长不足2秒，不允许打断当前播放 - SessionId: {}, 时长: {}ms", sessionId, speechDuration);
+                // 重置VAD会话状态，避免后续打断
+//                    vadService.resetSession(sessionId);
+//                    return;
+//                } else if (audioService.isPlaying(sessionId)) {
+                // 如果正在播放但无法获取语音时长，则按原逻辑处理
+//                    logger.info("语音时长信息不可用，执行正常打断逻辑 - SessionId: {}", sessionId);
+                sentenceQueue.get(sessionId).clear();
+                audioService.sendStop(session);
+//                }
 
                 // 如果已经在进行流式识别，先清理旧的资源
                 sessionManager.closeAudioStream(sessionId);
@@ -1068,31 +1068,31 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
     /**
      * 处理音频转录请求
      * 使用OpenAI Whisper进行音频转录
-     * 
-     * @param session 会话信息
+     *
+     * @param session   会话信息
      * @param audioData 音频数据
-     * @param language 语言代码（可选，默认为"zh"）
+     * @param language  语言代码（可选，默认为"zh"）
      * @return 转录结果
      */
     public String processAudioTranscription(ChatSession session, byte[] audioData, String language) {
         try {
             String sessionId = session.getSessionId();
-            logger.info("处理音频转录请求 - SessionId: {}, 音频大小: {} bytes, 语言: {}", 
+            logger.info("处理音频转录请求 - SessionId: {}, 音频大小: {} bytes, 语言: {}",
                     sessionId, audioData.length, language);
-            
+
             // 更新最后活动时间
             sessionManager.updateLastActivity(sessionId);
-            
+
             // 获取音频转录模型
             org.springframework.ai.chat.model.ChatModel transcriptionModel = chatModelFactory.takeTranscriptionModel();
-            
+
             // 使用AudioTranscriptionUtils进行安全转录
             String transcriptionResult = AudioTranscriptionUtils.safeTranscribe(
                     transcriptionModel, audioData, language != null ? language : "zh", null);
-            
+
             logger.info("音频转录完成 - SessionId: {}, 结果: {}", sessionId, transcriptionResult);
             return transcriptionResult;
-            
+
         } catch (Exception e) {
             logger.error("音频转录处理失败", e);
             return "抱歉，音频转录失败: " + e.getMessage();
@@ -1102,29 +1102,29 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
     /**
      * 处理音频转录并继续对话
      * 先进行音频转录，然后基于转录结果进行对话
-     * 
-     * @param session 会话信息
+     *
+     * @param session   会话信息
      * @param audioData 音频数据
-     * @param language 语言代码（可选，默认为"zh"）
+     * @param language  语言代码（可选，默认为"zh"）
      */
     public void processAudioTranscriptionAndChat(ChatSession session, byte[] audioData, String language) {
         Thread.startVirtualThread(() -> {
             try {
                 String sessionId = session.getSessionId();
                 logger.info("处理音频转录并对话 - SessionId: {}, 音频大小: {} bytes", sessionId, audioData.length);
-                
+
                 // 1. 先进行音频转录
                 String transcriptionResult = processAudioTranscription(session, audioData, language);
-                
-                if (transcriptionResult == null || transcriptionResult.trim().isEmpty() || 
-                    transcriptionResult.startsWith("抱歉，音频转录失败")) {
+
+                if (transcriptionResult == null || transcriptionResult.trim().isEmpty() ||
+                        transcriptionResult.startsWith("抱歉，音频转录失败")) {
                     logger.warn("音频转录失败或结果为空，无法继续对话");
                     return;
                 }
-                
+
                 // 2. 基于转录结果进行对话
                 handleText(session, transcriptionResult, null);
-                
+
             } catch (Exception e) {
                 logger.error("音频转录并对话处理失败", e);
             }
@@ -1136,7 +1136,7 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
      */
     private void handleNicknameAudio(String sessionId, byte[] audioData) {
         logger.info("开始处理昵称音频 - SessionId: {}, 音频大小: {} bytes", sessionId, audioData.length);
-        
+
         // 这里实现接收用户语音回复并转换为文字的逻辑
         // 需要结合STT服务进行语音识别
         ChatSession chatSession = sessionManager.getSession(sessionId);
@@ -1156,15 +1156,15 @@ public class DialogueService implements ApplicationListener<ChatSessionCloseEven
             logger.info("调用STT服务进行语音识别 - SessionId: {}", sessionId);
             String transcription = sttFactory.getDefaultSttService().recognition(audioData);
             logger.info("STT识别结果: {}", transcription);
-            
+
             if (StringUtils.hasText(transcription)) {
                 // 保存昵称
                 device.setDeviceNickname(transcription.trim());
                 deviceService.update(device);
-                
+
                 // 缓存昵称
                 sessionManager.cacheDeviceNickname(device.getDeviceId(), transcription.trim());
-                
+
                 // 发送确认消息
                 String confirmMessage = "好的，我以后就叫" + transcription.trim() + "了!";
                 String confirmAudioPath = ttsFactory.getDefaultTtsService().textToSpeech(confirmMessage);

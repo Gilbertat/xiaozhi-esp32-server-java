@@ -230,7 +230,7 @@ public class OpenAIStreamSttEngine {
 
         try {
             Flux<String> textFlux = audioSink.asFlux()
-                    .bufferTimeout(50, Duration.ofSeconds(1))
+                    .bufferTimeout(100, Duration.ofSeconds(3))  // ✅ 增加到3秒，减少重复识别
                     .filter(chunks -> !chunks.isEmpty())
                     .flatMap(chunks -> Mono.fromCallable(() -> {
                                         int total = chunks.stream().mapToInt(b -> b.length).sum();
