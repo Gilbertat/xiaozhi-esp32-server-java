@@ -117,6 +117,7 @@ public class SttServiceFactory {
             case "funasr" -> new FunASRSttService(config);
             case "xfyun" -> new XfyunSttService(config);
             case "openai" -> new OpenAISttService(config);
+            case "clova" -> new ClovaSTTService(config);
             default -> {
                 var service = initializeVosk();
                 if (service == null) {

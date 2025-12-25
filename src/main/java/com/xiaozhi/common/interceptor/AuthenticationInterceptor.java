@@ -45,6 +45,7 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
             "/api/user/checkCaptcha",
             "/api/user/checkUser",
             "/api/device/ota",
+            "/api/openai",
             "/audio/",
             "/uploads/",
             "/ws/");

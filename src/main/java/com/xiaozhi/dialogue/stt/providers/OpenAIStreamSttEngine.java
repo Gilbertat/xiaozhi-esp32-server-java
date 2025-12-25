@@ -30,9 +30,6 @@ public class OpenAIStreamSttEngine {
     private final String model;
     private final OkHttpClient httpClient;
 
-    // ✅ 缓存上次检测语言，减少重复调用 Python
-    private String cachedLanguage = null;
-
     public OpenAIStreamSttEngine(SysConfig sysConfig) {
         this.baseUrl = sysConfig.getBaseUrl();
         this.apiPath = sysConfig.getApiUrl();
@@ -61,33 +58,8 @@ public class OpenAIStreamSttEngine {
                 logger.error("recognition: 创建临时音频文件失败");
                 return "";
             }
-
-//            // ✅ 使用 Whisper Python 检测语言（仅第一次）
-//            if (cachedLanguage == null) {
-//                cachedLanguage = detectLanguageWithPython(tempFile);
-//                logger.info("Whisper语言检测结果: {}", cachedLanguage);
-//            }
-//
-//            // ✅ 若检测结果不是韩语，则直接忽略
-//            if (!"ko".equalsIgnoreCase(cachedLanguage)) {
-//                logger.info("非韩语语音（检测结果：{}），忽略此次识别", cachedLanguage);
-//                return "";
-//            }
-
             // ✅ 执行主识别（韩语）
             String mainResult = doRecognition(tempFile, true, model);
-
-//            // 若主识别失败，执行回退
-//            if (mainResult.isEmpty()) {
-//                logger.warn("主模型识别失败，尝试 Whisper 回退模型");
-//                mainResult = tryFallbackWhisper(tempFile);
-//            }
-//
-//            if (mainResult.isEmpty()) {
-//                logger.warn("所有识别尝试均失败");
-//                return "";
-//            }
-
             JSONObject json = new JSONObject(mainResult);
             String text = json.optString("text", "").trim();
             logger.info("✅ 识别成功: {}", text);
@@ -116,9 +88,6 @@ public class OpenAIStreamSttEngine {
                 .addFormDataPart("model", modelName)
                 .addFormDataPart("response_format", "json");
 
-        if (forceKorean) {
-            builder.addFormDataPart("prompt", "The audio is in Korean. Please transcribe accurately with proper spacing.");
-        }
 
         Request request = new Request.Builder()
                 .url(baseUrl + apiPath)
@@ -135,49 +104,7 @@ public class OpenAIStreamSttEngine {
         }
     }
 
-    /**
-     * whisper-large-v3 回退
-     */
-    private String tryFallbackWhisper(File audioFile) {
-        try {
-            String fallbackModel = "whisper-large-v3";
-            logger.info("使用回退模型: {}", fallbackModel);
-            return doRecognition(audioFile, true, fallbackModel);
-        } catch (Exception e) {
-            logger.error("Whisper 回退识别失败: {}", e.getMessage());
-            return "";
-        }
-    }
 
-    /**
-     * 调用 Python 脚本进行 Whisper 语言检测
-     */
-    private String detectLanguageWithPython(File audioFile) {
-        try {
-            ProcessBuilder pb = new ProcessBuilder(
-                    "python3", "detect_lang.py", audioFile.getAbsolutePath());
-            pb.redirectErrorStream(true);
-
-            Process process = pb.start();
-            String output;
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                output = reader.lines().collect(Collectors.joining()).trim();
-            }
-
-            int exitCode = process.waitFor();
-            if (exitCode != 0 || output.isEmpty()) {
-                logger.warn("语言检测失败，返回unknown");
-                return "unknown";
-            }
-
-            logger.info("检测到语言: {}", output);
-            return output;
-
-        } catch (Exception e) {
-            logger.error("调用 Python 语言检测失败: {}", e.getMessage());
-            return "unknown";
-        }
-    }
 
     /**
      * 简单检测文本是否为韩语
@@ -193,30 +120,12 @@ public class OpenAIStreamSttEngine {
      * 创建临时音频文件
      */
     private File createTempAudioFile(byte[] audioData) throws IOException {
-        byte[] wavData = ensureWavFormat(audioData);
+        byte[] wavData = AudioUtils.ensureWavFormat(audioData);
         File tempFile = File.createTempFile("openai_stt_", ".wav");
         try (FileOutputStream fos = new FileOutputStream(tempFile)) {
             fos.write(wavData);
         }
         return tempFile;
-    }
-
-    private byte[] ensureWavFormat(byte[] audioData) {
-        try {
-            if (isWavFormat(audioData)) return audioData;
-            return AudioUtils.pcmToWav(audioData, AudioUtils.SAMPLE_RATE, 1, 16);
-        } catch (Exception e) {
-            logger.warn("音频格式转换失败，使用原始数据", e);
-            return audioData;
-        }
-    }
-
-    private boolean isWavFormat(byte[] audioData) {
-        if (audioData.length < 12) return false;
-        return audioData[0] == 'R' && audioData[1] == 'I' &&
-                audioData[2] == 'F' && audioData[3] == 'F' &&
-                audioData[8] == 'W' && audioData[9] == 'A' &&
-                audioData[10] == 'V' && audioData[11] == 'E';
     }
 
     /**
@@ -268,7 +177,6 @@ public class OpenAIStreamSttEngine {
                     })
                     .doFinally(sig -> {
                         active.set(false);
-                        cachedLanguage = null; // ✅ 重置语言缓存
                         logger.info("语音流结束: {}", sig);
                     })
                     .blockLast();

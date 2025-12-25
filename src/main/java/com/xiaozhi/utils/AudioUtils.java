@@ -480,4 +480,34 @@ public class AudioUtils {
             return "application/octet-stream";
         }
     }
+
+    /**
+     * 确保音频数据是WAV格式
+     *
+     * @param audioData 音频数据
+     * @return 确保是WAV格式的音频数据
+     */
+    public static byte[] ensureWavFormat(byte[] audioData) {
+        try {
+            if (isWavFormat(audioData)) return audioData;
+            return AudioUtils.pcmToWav(audioData, AudioUtils.SAMPLE_RATE, 1, 16);
+        } catch (Exception e) {
+            logger.warn("音频格式转换失败，使用原始数据", e);
+            return audioData;
+        }
+    }
+
+    /**
+     * 检查音频数据是否是WAV格式
+     *
+     * @param audioData 音频数据
+     * @return true表示是WAV格式，false表示不是WAV格式
+     */
+    private static boolean isWavFormat(byte[] audioData) {
+        if (audioData.length < 12) return false;
+        return audioData[0] == 'R' && audioData[1] == 'I' &&
+                audioData[2] == 'F' && audioData[3] == 'F' &&
+                audioData[8] == 'W' && audioData[9] == 'A' &&
+                audioData[10] == 'V' && audioData[11] == 'E';
+    }
 }
